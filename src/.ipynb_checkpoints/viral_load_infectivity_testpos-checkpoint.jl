@@ -21,8 +21,8 @@ using SpecialFunctions
 using Plots
 
 #testing protocol definitions
-const PCR_mass_protocol = "PCR_mass_testing"
-const LFD_mass_protocol = "LFD_mass_testing"
+const PCR_mass_protocol = 1
+const LFD_mass_protocol = 2
 
 #VL trajectory params (Kissler)
 const beta_onset = 0.7
@@ -628,6 +628,8 @@ function init_testing!(sim::Dict, testing_params::Dict, i_day::Int, Ndays::Int; 
     sim["test_protocol"] = testing_params["protocol"]
     sim["will_isolate_with_test"] = ones(Bool,sim["Ntot"])
     sim["will_isolate_with_test"][sim["non_isolators"]] .= false
+    sim["testing_paused"] = zeros(Bool,sim["Ntot"])
+    sim["resume_testing"] = -ones(Int64,sim["Ntot"])
     new_compliers = randsubseq(sim["non_isolators"], testing_params["new_comply_prob"])
     if length(new_compliers) > 0
         sim["will_isolate_with_test"][new_compliers] .= true
