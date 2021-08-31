@@ -581,7 +581,7 @@ function init_VL_and_infectiousness(Ntot::Int, Pisol::Float64)
     return sim
 end
 
-function get_pos_profile(sim::Dict, ip::Int, protocol::Int; LFD_sens_rel::Float64 = 1.0)
+function get_pos_profile(sim::Dict, ip::Int, protocol::Int; sens_rel::Float64 = 1.0)
     if protocol == PCR_mass_protocol
         sim["test_pos_profiles"][ip] = PCRtest_positive_prob.(sim["VL_profiles"][ip])
     elseif protocol == LFD_mass_protocol
