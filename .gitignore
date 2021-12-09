@@ -1,0 +1,6 @@
+notebooks/New_model
+notebooks/Old_model
+src/.ipynb_checkpoints
+*.png
+src/Untitled.ipynb
+src/.ipynb_checkpoints/viral_load_infectivity_testpos-checkpoint.jl
