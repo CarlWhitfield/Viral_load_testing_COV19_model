@@ -538,8 +538,8 @@ function PCRtest_positive_prob(VL::Float64)
     end
 end
 
-# """
-#     LFDtest_positive_prob(VL::Float64, sens_rel::Float64=1.0)
+# """ old version
+#     LFDtest_positive_prob1(VL::Float64, sens_rel::Float64=1.0)
 
 # LFD test positive probability given a viral load
 
@@ -556,18 +556,17 @@ end
 # end
 
 """
-    LFDtest_positive_prob(VL::Float64, sens_rel::Float64=1.0)
+    LFDtest_positive_prob(VL::Float64)
 
 LFD test positive probability given a viral load
 
 ## Arguments: 
 `VL` = viral load value
-`sens_rel` = relative sensitivity scaling factor (default 1)
 
 ## Returns: 
 `Float64` = test positive probability
 """
-function LFDtest_positive_prob1(VL::Float64, sens_rel::Float64=1.0)
+function LFDtest_positive_prob1(VL::Float64)
     #relative to PCR -- pre-October 2021
     PCR_prob = PCRtest_positive_prob(VL)
 #     less fine data
@@ -595,7 +594,7 @@ function LFDtest_positive_prob1(VL::Float64, sens_rel::Float64=1.0)
     end
 end
     
-function LFDtest_positive_prob2(VL::Float64, sens_rel::Float64=1.0)
+function LFDtest_positive_prob2(VL::Float64)
     #relative to PCR -- pre-October 2021
     PCR_prob = PCRtest_positive_prob(VL)
     if VL < 4
@@ -694,7 +693,7 @@ function get_pos_profile(sim::Dict, ip::Int, protocol::Int; sens_rel::Float64 = 
     if protocol == PCR_mass_protocol
         sim["test_pos_profiles"][ip] = PCRtest_positive_prob.(sim["VL_profiles"][ip])
     elseif protocol == LFD_mass_protocol
-        sim["test_pos_profiles"][ip] = LFDtest_positive_prob.(sim["VL_profiles"][ip], Ref(sens_rel))
+        sim["test_pos_profiles"][ip] = LFDtest_positive_prob1.(sim["VL_profiles"][ip])
     end
 end
     

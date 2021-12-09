@@ -172,6 +172,20 @@ function init_testing_random!(sim::Dict, testing_params::Dict, Conf_PCR::Bool; L
     #assuming random compliance
 end
 
+"""
+    run_testing_scenarios_impact(Ntot::Int, Pisol::Float64, LFD_comply::Float64, 
+                                      Conf_PCR::Bool; LFD_type::Int=1)
+
+## Arguments: 
+`Ntot` = Number of profiles to generate
+`LFD_comply` = probability of doing each LFD test
+`Conf_PCR` = Do confirmatory PCR after positive LFD (if negative stop isolating early)
+`LFD_type` = If 2 use lower sensitvity
+
+## Returns: 
+`sim_scens` = Array of Dicts, one for each scenario simulated
+`sim_names` = Names of scenarios simulated
+ """
 function run_testing_scenarios_impact(Ntot::Int, Pisol::Float64, LFD_comply::Float64, 
                                       Conf_PCR::Bool; LFD_type::Int=1)
     sim_baseline = init_VL_and_infectiousness(Ntot, Pisol)
