@@ -39,7 +39,9 @@ const VL_LOD_Kissler = log10(250) - 0.93733/3.60971   #starting VL in log10 copi
 #PCR swab params (Smith et al. JCMB)
 const PCR_VL0 = 8.522/4.408
 const PCR_VLdisp = 4.408
-const PCR_sens_max = 0.95 #assumed
+PCR_sens_max = 0.95 #assumed
+Conf_PCR_fixed = false  #just use PCR sens for conf pcr
+Conf_PCR_sens = PCR_sens_max  #if Conf_PCR_fixed, use this
 const VL_LOD_PCR = 1.0 #Ct cutoff value for +ve test
 #LFD params (Porton Down)
 const LFD_VLmean = 10.836/2.680
@@ -121,6 +123,27 @@ to peak viral load).
 function generate_peak_time()
     return rand(PTdist)
 end
+
+
+Kmvμ = [17.546426070096476, 1.3929143716140635, -1.197782408256639, -0.671588386957475]
+KmvΣ = [0.909402789731975 0.04380760374470466 -0.010543420462335503 0.08062824362012769; 
+        0.04380760374470466 0.03252702842809508 0.02886593290248329 0.0045029579989726886; 
+       -0.010543420462335503 0.02886593290248329 0.02863997734805047 0.0003829717090314451; 
+       0.08062824362012769 0.0045029579989726886 0.0003829717090314451 0.026589971188178522]
+# KmvΣ = reshape(KmvΣ,(4,4))
+function generate_ke_VL_params()
+    return exp.(rand(MvNormal(Kmvμ, KmvΣ)))
+end
+
+
+Kmvinfμ = [1.782, -0.108]
+KmvinfΣ = [0.3387, 0.0265, 0.0265, 0.1270]
+KmvinfΣ = reshape(KmvinfΣ, (2,2))
+Jmean = exp(Kmvinfμ[1] + KmvinfΣ[1,1]/2)
+function generate_ke_inf_params()
+    return exp.(rand(MvNormal(Kmvinfμ, KmvinfΣ)))
+end
+
 
 """
     generate_asymptomatic()
@@ -331,32 +354,29 @@ end
 
 
 
-function infectivity_alt(PVL::Float64, OT::Float64, PT::Float64, DT::Float64, 
-                        PInf::Float64, T::Int64)
+function infectivity_alt(PVL::Float64, r::Float64, d::Float64, tp::Float64, J::Float64, h::Float64, T::Int64)
     #if viral load is piecewise linear, and infectivity is hill function, what is cumulative infectivity?
-    m_up = (PVL - VL_LOD_Kissler)/PT
-    m_down = (PVL - VL_LOD_Kissler)/DT
-    
-    r = log(10)*m_up
-    d = log(10)*m_down
+    m_up = r/log(10)
+    m_down = d/log(10)
+
     cum_inf = zeros(T+1)
     t_inf = collect(-1:(T-1)) .+ 0.5
     t_inf[1] = 0
     t_inf[T+1] = T - 1.0
     
-    V0 = (PVL - m_up*(OT+PT))
-    h = 0.94
-    K_m = 4.0e6
+    V0 = (PVL - m_up*tp)
+    K_m = 4.0e6^h
     a = h*r
+    PInf = J / Jmean
     c1 = K_m * 10^(-V0*h)
-    cond1 = (t_inf .> 0) .* (t_inf .<=  OT + PT)
+    cond1 = (t_inf .> 0) .* (t_inf .<=  tp)
     cum_inf[cond1] = PInf .* (log.(exp.(a .* t_inf[cond1]) .+ c1) 
                               .- log(c1 + 1.0)) ./ a
-    ci_peak = PInf .* (log.(exp.(a * (OT + PT)) .+ c1) .- log(c1 + 1)) ./ a
-    cond2 = (t_inf .>  OT + PT)
+    ci_peak = PInf .* (log.(exp.(a * (tp)) .+ c1) .- log(c1 + 1)) ./ a
+    cond2 = (t_inf .>  tp)
     b = -h*d
     c2 = K_m * 10^(-PVL*h)
-    cum_inf[cond2] = ci_peak .+ PInf .* (log.(exp.(b .* (t_inf[cond2] .- OT .- PT)) .+ c2) 
+    cum_inf[cond2] = ci_peak .+ PInf .* (log.(exp.(b .* (t_inf[cond2] .- tp)) .+ c2) 
                               .- log(c2 + 1.0)) ./ b
     
     inf = (cum_inf[2:(T+1)] .- cum_inf[1:T]) ./ (t_inf[2:(T+1)] .- t_inf[1:T])
@@ -407,7 +427,6 @@ function build_viral_load_distribution!(sim::Dict, index::Int64)
     #generate symptom onset time
     ST = generate_symp_time(OT,PT,DT)
     inf = infectivity(PVL, OT, PT, DT, PInf, T)
-    #inf = infectivity_alt(PVL, OT, PT, DT, PInf, T)
     
     SD = Int64(round(ST))
 
@@ -417,6 +436,47 @@ function build_viral_load_distribution!(sim::Dict, index::Int64)
     sim["VL_profiles"][index] = v
     sim["infection_profiles"][index] = inf
 end
+
+"""
+    build_viral_load_distribution!(v::Array{Float64,1}, inf::Array{Float64,1})
+
+Generate a viral load and infectivity trajectory
+
+## Arguments: 
+`sim` = Dict container with simulation info
+
+` i` = Index of individual to build
+
+## See also:
+`build_viral_load_distributions!(sim::Dict)`
+"""
+function build_viral_load_distribution_ke!(sim::Dict, index::Int64)
+    Vp, tp, invr, invd = generate_ke_VL_params()
+    J, h = generate_ke_inf_params()
+    
+    v = zeros(21)
+    T = length(v)
+    i = 1:T                              #day index
+    t = i .- 1                           #days since infection
+    
+    r = 1/invr
+    d = 1/invd
+    
+    v[t .<= tp] = log10.(Vp.*exp.(r.*(t[t .<= tp] .- tp)))
+    v[t .> tp] = log10.(Vp.*exp.(-d.*(t[t .> tp] .- tp)))
+    
+    Asymp = generate_asymptomatic()
+    ST = generate_symp_time(0.0, tp, length(v) - tp)
+    inf = infectivity_alt(log10(Vp), r, d, tp, J, h, T)
+    SD = Int64(round(ST))
+
+    sim["symp_day"][index] = SD
+    sim["VL_mag"][index] = Vp
+    sim["asymptomatic"][index] = Asymp
+    sim["VL_profiles"][index] = v
+    sim["infection_profiles"][index] = inf
+end
+
 
 """
     build_viral_load_distributions!(sim::Dict)
@@ -455,6 +515,10 @@ none
 """
 function build_viral_load_distributions!(sim::Dict)
     build_viral_load_distribution!.(Ref(sim), collect(1:sim["Ntot"]))
+end
+
+function build_viral_load_distributions_ke!(sim::Dict)
+    build_viral_load_distribution_ke!.(Ref(sim), collect(1:sim["Ntot"]))
 end
 
 # function infectivity(VL::Array{Float64,1}, peak_inf::Float64, peak_VL::Float64)
@@ -665,7 +729,7 @@ Randomly generate all viral load and infectivity data for a simulation
           "non_isolators" => `Array{Int64,1}` = Array of indices ofindividuals who would 
                                           refuse to isolate if they developed symptoms
 """
-function init_VL_and_infectiousness(Ntot::Int, Pisol::Float64)
+function init_VL_and_infectiousness(Ntot::Int, Pisol::Float64, Ke_model::Bool=false)
     #simulate Ntot people with baseline isolation probability Pisol
     sim = Dict("Ntot"=>Ntot, "asymptomatic"=>zeros(Bool, Ntot),
                "VL_mag"=>zeros(Float64,Ntot),
@@ -680,7 +744,11 @@ function init_VL_and_infectiousness(Ntot::Int, Pisol::Float64)
         push!(sim["infection_profiles"],zeros(0))
         push!(sim["VL_profiles"],zeros(0))
     end
-    build_viral_load_distributions!(sim)
+    if Ke_model
+        build_viral_load_distributions_ke!(sim)
+    else
+        build_viral_load_distributions!(sim)
+    end
     sim["will_isolate"][generate_isolations(Ntot, Pisol)] .= true
     nr = 1:sim["Ntot"]
     sim["non_isolators"] = nr[(sim["will_isolate"] .== false)]
@@ -812,12 +880,12 @@ function get_test_probs(VL_profile::Array{Float64,1}, TestDays::Array{Int64,1},
     return tp
 end
 
-function run_testing_scenario(inf_profile::Array{Float64,1}, test_pos::Array{Float64,1},
-        test_result_day::Array{Int64,1}, symp_day::Int64, symp_isol::Bool, 
-        VL_profile::Array{Float64,1}, Conf_PCR::Array{Bool,1}, 
-        Preisolation::Array{Int64,1} = zeros(Int64,0))
+function run_testing_scenario!(inf_profile_mod::Array{Float64,1}, inf_profile::Array{Float64,1}, 
+        test_pos::Array{Float64,1}, test_result_day::Array{Int64,1}, symp_day::Int64, symp_isol::Bool, 
+        VL_profile::Array{Float64,1}, Conf_PCR::Array{Bool,1}, Preisolation::Array{Int64,1} = zeros(Int64,0);
+        Day7release::Bool = false, Day67tests::Bool = true)
     
-    inf_profile_mod = copy(inf_profile)
+    inf_profile_mod .= copy(inf_profile)
     isol_start_day = copy(test_result_day)
     isol_start_prob = copy(test_pos)
     isol_conf_PCR = copy(Conf_PCR)
@@ -826,25 +894,48 @@ function run_testing_scenario(inf_profile::Array{Float64,1}, test_pos::Array{Flo
         push!(isol_start_prob, 1.0)
         push!(isol_conf_PCR, false)   #conf PCR not needed for symptoms
         itd = sortperm(isol_start_day)
+        isol_conf_PCR = isol_conf_PCR[itd]
         isol_start_day = isol_start_day[itd]
         isol_start_prob = isol_start_prob[itd]
     end
     go = true
     it = 1
+    isol_days = zeros(Int64,0)
     if length(Preisolation) > 0
         isol_days = Preisolation
-    else
-        isol_days = []
     end
     while go && it <= length(isol_start_day) && isol_start_day[it] <= length(inf_profile)
         if rand() < isol_start_prob[it]  #positive test or symp
-            isol_end = min(isol_start_day[it] + 10, length(inf_profile))
+            isol_end = isol_start_day[it] + 9
+            if Day7release #can shorten isolation with negative tests on day 6 and 7
+                T1neg = true    #start with day 6 test as negative
+                T2neg = true    #start with day 7 test as negative
+                if Day67tests   #if day 6 and 7 tests are done check if either is positive
+                    if isol_start_day[it] + 5 <= length(VL_profile)  #if there is measurable viral load by day 6, generate test result 
+                        T1prob =  LFDtest_positive_prob1(VL_profile[isol_start_day[it] + 5])
+                        T1neg = (rand() > T1prob)
+                    end
+                    if isol_start_day[it] + 6 <= length(VL_profile)
+                        T2prob =  LFDtest_positive_prob1(VL_profile[isol_start_day[it] + 6])
+                        T2neg = (rand() > T2prob)
+                    end
+                end
+                if T1neg && T2neg
+                    isol_end = isol_start_day[it] + 6
+                end
+            end
+            
             if isol_conf_PCR[it]  #assume confirmatory PCR is done immediately
                 if isol_start_day[it] <= length(VL_profile)
-                    if rand() > PCRtest_positive_prob(VL_profile[isol_start_day[it]])  
+                    CPCRprob = 0
+                    if Conf_PCR_fixed
+                        CPCRprob = Conf_PCR_sens
+                    else
+                        CPCRprob = PCRtest_positive_prob(VL_profile[isol_start_day[it]])  
+                    end
+                    if rand() > CPCRprob
                         #if conf PCR is negative
-                        isol_end = min(isol_start_day[it] + draw_PCR_delays(1)[1],
-                            length(inf_profile))
+                        isol_end = isol_start_day[it] + draw_PCR_delays(1)[1]
                     else
                         go = false   #otherwise isolate in full
                     end
@@ -858,10 +949,12 @@ function run_testing_scenario(inf_profile::Array{Float64,1}, test_pos::Array{Flo
         end
         it = it + 1
     end
-    isol_days = isol_days[isol_days .<= length(inf_profile_mod)]
+    Nisol_days = length(isol_days)   #record actual number of isolation days
+    isol_days = Int.(isol_days[isol_days .<= length(inf_profile_mod)])
+    #isolation days to be applied
     if length(isol_days) > 0
         inf_profile_mod[isol_days] .= 0
     end
     
-    return inf_profile_mod
+    return Nisol_days
 end

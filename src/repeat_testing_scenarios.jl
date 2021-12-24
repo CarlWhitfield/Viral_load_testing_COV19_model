@@ -1,6 +1,8 @@
 include("viral_load_infectivity_testpos_v2.jl")
 
-const scen_names = ["(b) Status Quo","(c1) Fortnightly concurrent PCR","(c2) Fortnightly random PCR", "(d) 3 LFDs per week","(e) 2 LFDs per week","(f) Daily LFDs","(a) No testing"]
+const scen_names = ["(b) Status Quo","(c1) Fortnightly concurrent PCR","(c2) Fortnightly random PCR", "(d) 3 LFDs per week","(e) 2 LFDs per week","(f) Daily LFDs","(g) Daily LFDs + PCR","(a) No testing"]
+
+use_ke_model = false
 
 function scenario_1_setup(Ndays::Int)   #2 LFDs + 1 concurrent PCR
     #assume day0 is random for each person
@@ -102,6 +104,21 @@ function scenario_6_setup(Ndays::Int)  #7 LFDs
     return TestDays, TestTypes, TestDays #result days same as test days
 end
 
+function scenario_7_setup(Ndays::Int)   #2 LFDs + 1 concurrent PCR
+    #assume day0 is random for each person
+    test_day0 = rand(1:7)
+    LFD_test_days = collect(1:Ndays)  
+    PCR_test_days = collect(test_day0:7:Ndays)
+    PCR_delays = draw_PCR_delays(length(PCR_test_days))
+    PCR_result_days = PCR_test_days .+ PCR_delays
+    TestDays = vcat(LFD_test_days,PCR_test_days)
+    ResultDays = vcat(LFD_test_days,PCR_result_days)
+    TestTypes = vcat(ones(length(LFD_test_days)), zeros(length(PCR_test_days)))
+    itd = sortperm(ResultDays)
+    return TestDays[itd], TestTypes[itd], ResultDays[itd]
+end
+
+
 """
     init_testing_random!(sim::Dict, testing_params::Dict, i_day::Int, Ndays::Int)
 
@@ -154,7 +171,9 @@ function init_testing_random!(sim::Dict, testing_params::Dict, Conf_PCR::Bool; L
     elseif testing_params["scenario"] == scen_names[5]  
         TestOutput = scenario_5_setup.(Ndays)
     elseif testing_params["scenario"] == scen_names[6]  
-        TestOutput = scenario_6_setup.(Ndays)    
+        TestOutput = scenario_6_setup.(Ndays)   
+    elseif testing_params["scenario"] == scen_names[7]  
+        TestOutput = scenario_7_setup.(Ndays)     
     end
     for i in 1:sim["Ntot"]
         sim["test_days"][i] = TestOutput[i][1]
@@ -187,27 +206,31 @@ end
 `sim_names` = Names of scenarios simulated
  """
 function run_testing_scenarios_impact(Ntot::Int, Pisol::Float64, LFD_comply::Float64, 
-                                      Conf_PCR::Bool; LFD_type::Int=1)
-    sim_baseline = init_VL_and_infectiousness(Ntot, Pisol)
-    sim_scens = Array{Dict,1}(undef,7)
-    for i in 1:6
+                                      Conf_PCR::Bool; LFD_type::Int=1, Day7release_bool::Bool = false,
+                                      Day67tests_bool::Bool = true)
+    sim_baseline = init_VL_and_infectiousness(Ntot, Pisol, use_ke_model)
+    sim_scens = Array{Dict,1}(undef,8)
+    for i in 1:7
         sim_scens[i] = copy(sim_baseline)
         init_testing_random!(sim_scens[i], Dict("scenario"=>scen_names[i],
                              "comply_prob"=>LFD_comply), Conf_PCR; LFD_type=LFD_type)
-        sim_scens[i]["inf_profile_isolation"] = run_testing_scenario.(sim_scens[i]["infection_profiles"], 
-            sim_scens[i]["test_pos_prob"], sim_scens[i]["test_result_days"], sim_scens[i]["symp_day"] .+ 1, 
-            sim_scens[i]["will_isolate"], sim_scens[i]["VL_profiles"], 
-            sim_scens[i]["conf_PCR"])
+        
+        sim_scens[i]["inf_profile_isolation"] = copy.(sim_scens[i]["infection_profiles"])
+        sim_scens[i]["isol_days"] = run_testing_scenario!.(sim_scens[i]["inf_profile_isolation"],
+            sim_scens[i]["infection_profiles"],  sim_scens[i]["test_pos_prob"], sim_scens[i]["test_result_days"], 
+            sim_scens[i]["symp_day"] .+ 1,  sim_scens[i]["will_isolate"], sim_scens[i]["VL_profiles"], 
+            sim_scens[i]["conf_PCR"]; Day7release=Day7release_bool, Day67tests=Day67tests_bool)
     end
     sim_baseline["test_pos_prob"] = fill(zeros(0),sim_baseline["Ntot"])
     sim_baseline["test_result_days"]  = fill(zeros(Int64,0),sim_baseline["Ntot"])
     Conf_PCR_h = fill(zeros(Bool,0),sim_baseline["Ntot"])
-    sim_baseline["inf_profile_isolation"] = run_testing_scenario.(sim_baseline["infection_profiles"], 
-        sim_baseline["test_pos_prob"], sim_baseline["test_result_days"],
+    sim_baseline["inf_profile_isolation"] = copy.(sim_baseline["infection_profiles"])
+    sim_baseline["isol_days"] = run_testing_scenario!.(sim_baseline["inf_profile_isolation"], 
+        sim_baseline["infection_profiles"], sim_baseline["test_pos_prob"], sim_baseline["test_result_days"],
         sim_baseline["symp_day"] .+ 1, sim_baseline["will_isolate"], sim_baseline["VL_profiles"], 
-        Conf_PCR_h)
-    sim_scens[7] = copy(sim_baseline)
-    for i in 1:7
+        Conf_PCR_h; Day7release=Day7release_bool, Day67tests=Day67tests_bool)
+    sim_scens[8] = copy(sim_baseline)
+    for i in 1:8
         sim_scens[i]["inf_days"] = zeros(Int64, Ntot)
         for j in 1:Ntot
             sim_scens[i]["inf_days"][j] = sum((sim_scens[i]["inf_profile_isolation"][j] .> 0))
