@@ -50,9 +50,9 @@ const PIsigma = 0.5
 const PImu = -0.5*PIsigma^2
 #Viral load where people stop being infectious
 const inf_VL_cutoff = 6.0 #3.0 -- should only have minor effect
-#this scaling means that, on average, p_inf is approx 0.06 for hour long face-to-face contacts within 14 days of infection.
-const j0scale = 4.1 * 1.1 *(4.0/(exp(log(inf_dep)^2*peakVL_sd^2/2)*(1 +
-                erf((peakVL_mean - inf_VL_cutoff + log(inf_dep)*peakVL_sd^2)/(sqrt(2)*peakVL_sd)))))
+#this scaling means that approx. the mean infectiousness over a 14-day period is 1.0
+const j0scale = 4.7
+#const j0scale = 4.1 * 1.1 *(4.0/(exp(log(inf_dep)^2*peakVL_sd^2/2)*(1 +                erf((peakVL_mean - inf_VL_cutoff + log(inf_dep)*peakVL_sd^2)/(sqrt(2)*peakVL_sd)))))
 #correlation gradient between peak_inf and pasymp
 # const pasymp_vl7 = 0.62
 # const pasymp_vl89 = 0.5
@@ -72,10 +72,10 @@ const PTdist = Gamma(alpha_peak,1/beta_peak)
 const DTsympdist = Gamma(alpha_decay_symp,1/beta_decay)
 const DTasympdist = Gamma(alpha_decay_asymp,1.0/beta_decay)
 
-""" 
+"""
     generate_peak_viral_load()
 
-Generate and return a single peak viral load value. 
+Generate and return a single peak viral load value.
 
 ## Returns:
 `Float` = peak viral load (log10 copies/ml)
@@ -84,26 +84,26 @@ function generate_peak_viral_load()
     return rand(PVLdist)
 end
 
-""" 
+"""
     generate_onset_time()
 
 Generate and return a single onset time (time from infection
 when viral load is detectable).
 
-## Returns: 
+## Returns:
 `Float` = onset time (days)
 """
 function generate_onset_time()
     return rand(OTdist)
 end
 
-""" 
+"""
     generate_peak_time()
 
-Generate and return a single peak time (time from onset 
+Generate and return a single peak time (time from onset
 to peak viral load).
 
-## Returns: 
+## Returns:
 `Float` = peak time (days)
 """
 function generate_peak_time()
@@ -116,8 +116,8 @@ end
 Generate and return a boolean value determining whether
 somebody will develop symptoms.
 
-## Returns: 
-`Bool` = whether or not the person in asymptomatic (true = 
+## Returns:
+`Bool` = whether or not the person in asymptomatic (true =
           asymptomatic, false = symptoms)
 """
 function generate_asymptomatic()
@@ -128,20 +128,20 @@ end
 """
     generate_decay_time(Asymp::Bool)
 
-Generate and return a single decay time (time from peak viral load 
+Generate and return a single decay time (time from peak viral load
 to undetectable VL).
 
-## Arguments: 
+## Arguments:
 `Asymp` = whether or not the person in asymptomatic
 
-## Returns: 
+## Returns:
 `Float` = Decay time (days)
 
-## See also: 
+## See also:
 `generate_asymptomatic()`
 """
 function generate_decay_time(Asymp::Bool)
-    DT = 
+    DT =
     if Asymp
         DT = rand(DTasympdist)
     else
@@ -158,7 +158,7 @@ Generate and return multiple peak viral load values.
 ## Arguments:
 `Ntot` = Number of values to generate
 
-## Returns: 
+## Returns:
 `Array{Float64,1}` = Peak viral loads (log10 copies/ml)
 
 ## See also:
@@ -171,13 +171,13 @@ end
 """
     generate_onset_times(Ntot::Int)
 
-Generate and return multiple onset times (time from infection 
+Generate and return multiple onset times (time from infection
 when viral load is detectable).
 
-## Arguments: 
+## Arguments:
 `Ntot` = Number of values to generate
 
-## Returns: 
+## Returns:
 `Array{Float64,1}` = onset times (days)
 
 ## See also:
@@ -190,13 +190,13 @@ end
 """
     generate_peak_times(Ntot::Int)
 
-Generate and return multiple onset times (time from infection 
+Generate and return multiple onset times (time from infection
 when viral load is detectable).
 
-## Arguments: 
+## Arguments:
 `Ntot` = Number of values to generate
 
-## Returns: 
+## Returns:
 `Array{Float64,1}` = peak times (days)
 
 ## See also:
@@ -211,10 +211,10 @@ end
 
 Generate and return multiple asymptomatic indicators
 
-## Arguments: 
+## Arguments:
 `Ntot` = Number of values to generate
 
-## Returns: 
+## Returns:
 `Array{Bool,1}` = Asymptomatic statuses
 
 ## See also:
@@ -228,13 +228,13 @@ end
 """
     generate_decay_times(Ntot::Int, Asymp::Array{Bool,1})
 
-Generate and return multiple decay times (time from peak viral 
+Generate and return multiple decay times (time from peak viral
 load to undetectable VL).
 
-## Arguments: 
+## Arguments:
 `Ntot` = Number of values to generate
 
-## Returns: 
+## Returns:
 `Array{Float64,1}` = Array of decay times
 
 ## See also:
@@ -250,10 +250,10 @@ end
 
 Generate and return peak infectivity
 
-## Arguments: 
+## Arguments:
 `peak_VL` = Peak viral load (log10 copies/ml)
 
-## Returns: 
+## Returns:
 `Float64` = Peak infectivity (normalised units)
 
 ## See also:
@@ -269,17 +269,17 @@ end
 """
     generate_symp_time(OT::Float64, PT::Float64, DT::Float64)
 
-Generate and return single time of symptom onset, 
+Generate and return single time of symptom onset,
 bounded by the times where viral load is at detectable levels
 
-## Arguments: 
+## Arguments:
 `OT` = Onset time (days)
 
 `PT` = Time from onset to peak VL (days)
 
 `DT` = Time from peak to undetectable VL (days)
 
-## Returns: 
+## Returns:
 `Float64` = Symptom onset time (days)
 
 ## See also:
@@ -295,7 +295,7 @@ end
 
 Generate a viral load and infectivity trajectory
 
-## Arguments: 
+## Arguments:
 `sim` = Dict container with simulation info
 
 ` i` = Index of individual to build
@@ -311,10 +311,10 @@ function build_viral_load_distribution!(sim::Dict, index::Int64)
     DT = generate_decay_time(Asymp)
     PInf = generate_peak_inf(PVL)
     #generate blank containers for viral load and infectivity
-    
+
     v = zeros(Int64(ceil(OT + PT + DT + 10)))
     inf = zeros(Int64(ceil(OT + PT + DT + 10)))
-    
+
     m_up = (PVL - VL_LOD_Kissler)/PT     #slope up to peak VL
     m_down = (PVL - VL_LOD_Kissler)/DT   #slope down from peak VL
     T = length(v)
@@ -337,18 +337,18 @@ function build_viral_load_distribution!(sim::Dict, index::Int64)
         tinf_end = OT + PT + (PVL - inf_VL_cutoff)/m_down
         cum_inf = zeros(T+1)
         t_inf = collect(-1:(T-1)) .+ 0.5
-           
+
         #ensure cumulative infectiousness is preserved in interpolation
         cond1 = (t_inf .>= tinf_start) .* (t_inf .<  OT + PT)
-        cum_inf[cond1] = 0.5 * PInf .* (t_inf[cond1] .- tinf_start).^2 / 
+        cum_inf[cond1] = 0.5 * PInf .* (t_inf[cond1] .- tinf_start).^2 /
                                (OT + PT - tinf_start)
-        
+
         cond2 = (t_inf .>= OT + PT) .* (t_inf .<=  tinf_end)
         c_inf_peak = 0.5 * PInf * (OT + PT - tinf_start)
         cum_inf[cond2] = c_inf_peak .+ PInf .* (t_inf[cond2] .- OT .- PT) .*
                     (1.0 .- 0.5 .* (t_inf[cond2] .- OT .- PT) ./ (tinf_end  - OT - PT))
         cum_inf[t_inf .>  tinf_end] .= 0.5*PInf*(tinf_end - tinf_start)
-        
+
         inf .= cum_inf[2:(T+1)] .- cum_inf[1:T]
         nel = 1:length(t)
         deleteat!(inf, nel[t .> Int64(ceil(tinf_end))])
@@ -374,7 +374,7 @@ Generate multiple viral load and infectivity trajectories.
         a container for a generated viral load trajectory for
         individual i, interpolated to one value per day.
 
-    "infection_profiles"=>Array{Array{Float64,1},1} = Each 
+    "infection_profiles"=>Array{Array{Float64,1},1} = Each
         entry i is a container for a generated infectivity profile
         of individual i, interpolated to one value per day.
 
@@ -384,14 +384,14 @@ Generate multiple viral load and infectivity trajectories.
     "VL_mag"=>Array{Float64,1} = Each entry i is the peak viral
         load of individual i.
 
-    "asymptomatic"=>Array{Float64,1}  = Each entry i is the 
+    "asymptomatic"=>Array{Float64,1}  = Each entry i is the
         asymptomatic status of individual i.
 
     All arrays must have the same size (number of trajectories
     to be generated), and the entries will be overwritten with
     the generated values.
 
-## Returns: 
+## Returns:
 none
 
 ## See also
@@ -424,9 +424,9 @@ end
 """
     logistic_function(x::Float64, x0::Float64, k::Float64, ymax::Float64)
 
-Scaled logistic function 
+Scaled logistic function
 
-## Arguments: 
+## Arguments:
 `x`
 
 `x0` = Point where logistic function is at 50% of max value
@@ -435,7 +435,7 @@ Scaled logistic function
 
 `ymax` = Maximum value of logistic function
 
-## Returns: 
+## Returns:
 `Float64` = ymax / (1  + exp(-k*(x-x0)))
 """
 function logistic_function(x::Float64, x0::Float64, k::Float64, ymax::Float64)
@@ -445,9 +445,9 @@ end
 """
     probit_function(x::Float64, x0::Float64, xstd::Float64, ymax::Float64)
 
-Scaled probit function 
+Scaled probit function
 
-## Arguments: 
+## Arguments:
 `x`
 
 `x0` = Mean of normal distribution kernel
@@ -456,7 +456,7 @@ Scaled probit function
 
 `ymax` = Maximum value of probit function
 
-## Returns: 
+## Returns:
 `Float64` = ymax * cdf(Normal(x0,xstd),x)
 """
 function probit_function(x::Float64, x0::Float64, xstd::Float64, ymax::Float64)
@@ -468,10 +468,10 @@ end
 
 PCR test positive probability given a viral load
 
-## Arguments: 
+## Arguments:
 `VL` = viral load value (log10 copies/ml)
 
-## Returns: 
+## Returns:
 `Float64` = test positive probability
 """
 function PCRtest_positive_prob(VL::Float64)
@@ -488,11 +488,11 @@ end
 
 LFD test positive probability given a viral load
 
-## Arguments: 
+## Arguments:
 `VL` = viral load value
 `sens_rel` = relative sensitivity scaling factor (default 1)
 
-## Returns: 
+## Returns:
 `Float64` = test positive probability
 """
 function LFDtest_positive_prob(VL::Float64, sens_rel::Float64=1.0)
@@ -505,11 +505,11 @@ end
 
 Randomly generate whether people obey symptomatic isolation or not
 
-## Arguments: 
+## Arguments:
 `Ntot` = Number to generate (indices are 1:Ntot)
 `Pisol` = Probability of isolation
 
-## Returns: 
+## Returns:
 `Array{Int,1}` = Array of indices of those who will isolate at symptom
                  onset (if symptomatic)
 """
@@ -526,19 +526,19 @@ Randomly generate all viral load and infectivity data for a simulation
 `Ntot` = Number of individuals to simulate
 `Pisol` = Probability of self-isolation at symptom onset
 
-## Returns: 
+## Returns:
 `Dict` = Container with generated parameters including:
 
         "Ntot" => `Int` = Number of individuals in simulation (indexed 1:Ntot)
 
         "asymptomatic" => `Array{Bool,1}` = Asymptomatic status for each individual
 
-        "isolation_time" => `Array{Int64,1}` = Day of isolation for each individual 
+        "isolation_time" => `Array{Int64,1}` = Day of isolation for each individual
                                            (to be filled later)
 
          "will_isolate" => `Array{Bool,1}` = Indicator of whether an individual will
                                          isolate at symptom onset time
-        
+
          "VL_mag" => `Array{Float64,1}` = Peak viral load for each individual
 
          "inf_mag" => `Array{Float64,1}` = Peak infectivity for each individual
@@ -555,7 +555,7 @@ Randomly generate all viral load and infectivity data for a simulation
           "symp_day" => `Array{Int64,1}` = Day at which individuals would isolate due to
                                          symptom onset
 
-          "non_isolators" => `Array{Int64,1}` = Array of indices ofindividuals who would 
+          "non_isolators" => `Array{Int64,1}` = Array of indices ofindividuals who would
                                           refuse to isolate if they developed symptoms
 """
 function init_VL_and_infectiousness(Ntot::Int, Pisol::Float64)
@@ -588,8 +588,8 @@ function get_pos_profile(sim::Dict, ip::Int, protocol::Int; sens_rel::Float64 = 
         sim["test_pos_profiles"][ip] = LFDtest_positive_prob.(sim["VL_profiles"][ip], Ref(sens_rel))
     end
 end
-    
-    
+
+
 """
     init_testing!(sim::Dict, testing_params::Dict, i_day::Int, Ndays::Int)
 
@@ -617,7 +617,7 @@ Function to initialise test positive profiles and test isolation probabilities
 
 `Int64` = Next testing day index (from `i_day`)
 
-## See also: 
+## See also:
 `init_VL_and_infectiousness(Ntot::Int, Pisol::Float64)`
 """
 function init_testing!(sim::Dict, testing_params::Dict, i_day::Int, Ndays::Int; fill_pos_profiles::Bool=true)
@@ -641,10 +641,10 @@ function init_testing!(sim::Dict, testing_params::Dict, i_day::Int, Ndays::Int; 
     sim["test_pos_profiles"] = Array{Array{Float64,1},1}(undef,sim["Ntot"])
     if fill_pos_profiles
         if haskey(testing_params,"sens_rel")
-            sim["test_pos_profiles"] .= get_pos_profile.(Ref(sim), 1:sim["Ntot"], 
+            sim["test_pos_profiles"] .= get_pos_profile.(Ref(sim), 1:sim["Ntot"],
                         testing_params["protocol"], testing_params["sens_rel"])
         else
-            sim["test_pos_profiles"] .= get_pos_profile.(Ref(sim), 1:sim["Ntot"], 
+            sim["test_pos_profiles"] .= get_pos_profile.(Ref(sim), 1:sim["Ntot"],
                         testing_params["protocol"])
         end
     end
@@ -662,7 +662,7 @@ Create a plot of all infectiousness profiles
 
 ## Returns:
 
-## See also: 
+## See also:
 `init_VL_and_infectiousness(Ntot::Int, Pisol::Float64)`
 """
 function plot_infection_profiles(sim::Dict)
@@ -674,6 +674,6 @@ function plot_infection_profiles(sim::Dict)
     end
 
     pout = Plots.display(pp)
-    
+
     return pout
 end
