@@ -50,9 +50,11 @@ const PIsigma = 0.5
 const PImu = -0.5*PIsigma^2
 #Viral load where people stop being infectious
 const inf_VL_cutoff = 6.0 #3.0 -- should only have minor effect
-#this scaling means that approx. the mean infectiousness over a 14-day period is 1.0
+#this scaling means that, on average, the infectivity is 1.0 over the 14-day period
 const j0scale = 4.7
-#const j0scale = 4.1 * 1.1 *(4.0/(exp(log(inf_dep)^2*peakVL_sd^2/2)*(1 +                erf((peakVL_mean - inf_VL_cutoff + log(inf_dep)*peakVL_sd^2)/(sqrt(2)*peakVL_sd)))))
+
+#const j0scale = 4.1 * 1.1 *(4.0/(exp(log(inf_dep)^2*peakVL_sd^2/2)*(1 +
+  #              erf((peakVL_mean - inf_VL_cutoff + log(inf_dep)*peakVL_sd^2)/(sqrt(2)*peakVL_sd)))))
 #correlation gradient between peak_inf and pasymp
 # const pasymp_vl7 = 0.62
 # const pasymp_vl89 = 0.5
@@ -562,6 +564,7 @@ function init_VL_and_infectiousness(Ntot::Int, Pisol::Float64)
     #simulate Ntot people with baseline isolation probability Pisol
     sim = Dict("Ntot"=>Ntot, "asymptomatic"=>zeros(Bool, Ntot),
                "VL_mag"=>zeros(Float64,Ntot),
+               "symp_day"=>zeros(Float64,Ntot),
                "isolation_time"=>zeros(Int64, Ntot),
                "will_isolate"=>zeros(Bool, Ntot),
                "inf_mag"=>zeros(Float64, Ntot),
