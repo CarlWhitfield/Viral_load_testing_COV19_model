@@ -12,7 +12,7 @@ Written by Carl Whitfield, University of Manchester, 2021
 #p_asymp = 0.5                  #asymptomatic fraction
 #onset_opt = V0_model_opt        #IF using kissler VL model, option for how to generate onset time
 #peak_inf_opt = marks_peakinf_opt   #IF using flat or linear inf model, what function is used for peak value
-#PCR_TaT_scale = 1.0 
+#PCR_TaT_scale = 1.0
 #===============================================================#
 
 include("definitions.jl")
@@ -28,13 +28,13 @@ end
 """
     generate_symp_time(tp::Float64)
 
-Generate and return single time of symptom onset, 
+Generate and return single time of symptom onset,
 bounded by the times where viral load is at detectable levels
 
-## Arguments: 
+## Arguments:
 `tp` = Time from infection to peak VL (days)
 
-## Returns: 
+## Returns:
 `Float64` = Symptom onset time (days)
 
 ## See also:
@@ -42,7 +42,7 @@ bounded by the times where viral load is at detectable levels
 """
 function generate_symp_time(tp::Float64)
     #Truncate in narrow window, 2 days either side of VL peak
-    Strunc = truncated(Gamma(symp_alpha,1.0/symp_beta), 
+    Strunc = truncated(Gamma(symp_alpha,1.0/symp_beta),
                        max(0.0, tp - 2.0), tp + 2.0)
     return rand(Strunc)
 end
@@ -52,11 +52,11 @@ end
 
 Randomly generate whether people obey symptomatic isolation or not
 
-## Arguments: 
+## Arguments:
 `Ntot` = Number to generate (indices are 1:Ntot)
 `Pisol` = Probability of isolation
 
-## Returns: 
+## Returns:
 `Array{Int,1}` = Array of indices of those who will isolate at symptom
                  onset (if symptomatic)
 """
@@ -65,7 +65,7 @@ function generate_isolations(Ntot::Int, Pisol::Float64)
 end
 
 
-function infectivity(PVL::Float64, r::Float64, d::Float64, tp::Float64, 
+function infectivity(PVL::Float64, r::Float64, d::Float64, tp::Float64,
                      T::Int64)
     if Inf_model == ke_inf_model_no
         J,h = generate_ke_inf_params()
@@ -73,12 +73,12 @@ function infectivity(PVL::Float64, r::Float64, d::Float64, tp::Float64,
     elseif Inf_model == flat_inf_model_no
         PInf = generate_peak_infectivity(PVL)
         #divide by 2 so area under inf curve same as linear case
-        inf = infectivity_flat(PVL, r, d, tp, 0.5*PInf, T)  
+        inf = infectivity_flat(PVL, r, d, tp, 0.5*PInf, T)
     elseif Inf_model == linear_inf_model_no
         PInf = generate_peak_infectivity(PVL)
         inf = infectivity_linear(PVL, r, d, tp, PInf, T)
     end
-    
+
     return inf
 end
 
@@ -87,7 +87,7 @@ end
 
 Generate a viral load and infectivity trajectory
 
-## Arguments: 
+## Arguments:
 `sim` = Dict container with simulation info
 
 ` i` = Index of individual to build
@@ -98,20 +98,20 @@ Generate a viral load and infectivity trajectory
 function build_viral_load_distribution!(sim::Dict, index::Int64)
     Asymp = generate_asymptomatic()
     PVL, tp, r, d = generate_VL_params(Asymp)
-    
+
     T = Int64(ceil(tp + log(10)*(PVL - VL_LOD_PCR)/d))
     if T < 1
-        print("Strange parameter set generated: PVL = ", PVL, 
+        print("Strange parameter set generated: PVL = ", PVL,
               ", d = ", d, ", tp = ", tp, '\n')
         T = 1
     end
     v = zeros(T)
     i = 1:T                              #day index
     t = i .- 1                           #days since infection
-    
+
     v[t .<= tp] = PVL .+  (r/log(10))*(t[t .<= tp] .- tp)
     v[t .> tp] = PVL .- (d/log(10))*(t[t .> tp] .- tp)
-    
+
     ST = generate_symp_time(tp)
     inf = infectivity(PVL, r, d, tp, T)
     SD = Int64(round(ST))
@@ -135,7 +135,7 @@ Generate multiple viral load and infectivity trajectories.
         a container for a generated viral load trajectory for
         individual i, interpolated to one value per day.
 
-    "infection_profiles"=>Array{Array{Float64,1},1} = Each 
+    "infection_profiles"=>Array{Array{Float64,1},1} = Each
         entry i is a container for a generated infectivity profile
         of individual i, interpolated to one value per day.
 
@@ -145,14 +145,14 @@ Generate multiple viral load and infectivity trajectories.
     "VL_mag"=>Array{Float64,1} = Each entry i is the peak viral
         load of individual i.
 
-    "asymptomatic"=>Array{Float64,1}  = Each entry i is the 
+    "asymptomatic"=>Array{Float64,1}  = Each entry i is the
         asymptomatic status of individual i.
 
     All arrays must have the same size (number of trajectories
     to be generated), and the entries will be overwritten with
     the generated values.
 
-## Returns: 
+## Returns:
 none
 
 ## See also
@@ -171,19 +171,19 @@ Randomly generate all viral load and infectivity data for a simulation
 `Ntot` = Number of individuals to simulate
 `Pisol` = Probability of self-isolation at symptom onset
 
-## Returns: 
+## Returns:
 `Dict` = Container with generated parameters including:
 
         "Ntot" => `Int` = Number of individuals in simulation (indexed 1:Ntot)
 
         "asymptomatic" => `Array{Bool,1}` = Asymptomatic status for each individual
 
-        "isolation_time" => `Array{Int64,1}` = Day of isolation for each individual 
+        "isolation_time" => `Array{Int64,1}` = Day of isolation for each individual
                                            (to be filled later)
 
          "will_isolate" => `Array{Bool,1}` = Indicator of whether an individual will
                                          isolate at symptom onset time
-        
+
          "VL_mag" => `Array{Float64,1}` = Peak viral load for each individual
 
          "inf_mag" => `Array{Float64,1}` = Peak infectivity for each individual
@@ -200,7 +200,7 @@ Randomly generate all viral load and infectivity data for a simulation
           "symp_day" => `Array{Int64,1}` = Day at which individuals would isolate due to
                                          symptom onset
 
-          "non_isolators" => `Array{Int64,1}` = Array of indices ofindividuals who would 
+          "non_isolators" => `Array{Int64,1}` = Array of indices ofindividuals who would
                                           refuse to isolate if they developed symptoms
 """
 function init_VL_and_infectiousness(Ntot::Int, Pisol::Float64)
@@ -237,7 +237,7 @@ Create a plot of all infectiousness profiles
 
 ## Returns:
 
-## See also: 
+## See also:
 `init_VL_and_infectiousness(Ntot::Int, Pisol::Float64)`
 """
 function plot_infection_profiles(sim::Dict)
@@ -249,12 +249,12 @@ function plot_infection_profiles(sim::Dict)
     end
 
     pout = Plots.display(pp)
-    
+
     return pout
 end
-    
+
 function plot_trajectories(A::Array{Array{Float64,1},1})
-    Ntraj = length(A) 
+    Ntraj = length(A)
     tmax = max(length.(A)...)
     traj = zeros(tmax,Ntraj)
     for n in 1:Ntraj
@@ -264,7 +264,7 @@ function plot_trajectories(A::Array{Array{Float64,1},1})
     if Ntraj > 100
         npick = rand(npick,100)
     end
-    
+
     plot(1:tmax, traj[:,npick],label=:none, color=:grey, alpha=0.3)
     plot!(1:tmax, median(traj,dims=2), style=:dashdot, color=:black,
           linewidth=3, label="median")
