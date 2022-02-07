@@ -1,4 +1,4 @@
-include("viral_load_infectivity_testpos_v2.jl")
+include("viral_load_infectivity_testpos.jl")
 
 const scen_names = ["(b) Status Quo","(c1) Fortnightly concurrent PCR","(c2) Fortnightly random PCR", "(d) 3 LFDs per week","(e) 2 LFDs per week","(f) Daily LFDs","(g) Daily LFDs + PCR","(h) 3 LFDs + PCR",
     "(a) No testing"]

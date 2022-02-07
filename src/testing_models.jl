@@ -177,13 +177,15 @@ Function to initialise test positive profiles and test isolation probabilities
 ## See also: 
 `init_VL_and_infectiousness(Ntot::Int, Pisol::Float64)`
 """
-function init_testing!(sim::Dict, testing_params::Dict, i_day::Int, Ndays::Int; fill_pos_profiles::Bool=true)
+function init_testing!(sim::Dict, testing_params::Dict, i_day::Int, Ndays::Int; fill_pos_profiles::Bool=true,
+                       different_start::Bool=false)
     #add test positivity profiles to simulation Dict, i_day is start day, Ndays is total length of sim
     #testing params contains "tperiod" (days between test)
     #testing params contains "protocol" (LFD_mass_protocol or PCR_mass_protocol)
     #testing params contains "testing_enforced" (if true all tests are done)
+    #test_miss_prob: if "testing_enforced" is false, random probability of missing a test
     #optional: sens_rel: relative scaling of test sensitivity (does not effect spec)
-    #optional: test_miss_prob: if "testing_enforced" is false, random probability of missing a test
+    #optional: policy_adherence: if "testing_enforced" is false, independent probability of adhering to testing
     #(has same effect as sens_rel on test sensitivity, but also affect false positives)
     sim["test_protocol"] = testing_params["protocol"]
     if haskey(testing_params,"sens_rel")
@@ -195,14 +197,31 @@ function init_testing!(sim::Dict, testing_params::Dict, i_day::Int, Ndays::Int; 
     
     sim["will_isolate_with_test"] = ones(Bool,sim["Ntot"])
     if testing_params["testing_enforced"] == false  #if not enforced, we assume same group who does not isolate with symps does not isolate with tests (simplification)
-        sim["will_isolate_with_test"][sim["non_isolators"]] .= false
+        if haskey(testing_params,"policy_adherence")
+            non_adherers = randsubseq(1:sim["Ntot"], 1 - testing_params["policy_adherence"])
+            sim["will_isolate_with_test"][non_adherers] .= false
+        else
+            sim["will_isolate_with_test"][sim["non_isolators"]] .= false
+        end
     end
     sim["testing_paused"] = zeros(Bool,sim["Ntot"])
     sim["resume_testing"] = -ones(Int64,sim["Ntot"])
-    test_day0 = rand(1:testing_params["tperiod"])
-    test_days = collect(test_day0:testing_params["tperiod"]:Int64(ceil(Ndays)))
-    test_days = push!(test_days, test_days[end] + testing_params["tperiod"])
-    test_day_counter = 1 + sum(test_days .< i_day)
+    
+    if different_start
+        test_days0 = rand(1:testing_params["tperiod"],sim["Ntot"])
+        test_days = Array{Array{Int64,1},1}(undef,sim["Ntot"])
+        test_day_counter = ones(Int64,sim["Ntot"])
+        for i in 1:sim["Ntot"]
+            test_days[i] = collect(test_days0[i]:testing_params["tperiod"]:Int64(ceil(Ndays)))
+            test_days[i] = push!(test_days[i], test_days[i][end] + testing_params["tperiod"])
+            test_day_counter[i] = 1 + sum(test_days[i] .< i_day)
+        end
+    else
+        test_day0 = rand(1:testing_params["tperiod"])
+        test_days = collect(test_day0:testing_params["tperiod"]:Int64(ceil(Ndays)))
+        test_days = push!(test_days, test_days[end] + testing_params["tperiod"])
+        test_day_counter = 1 + sum(test_days .< i_day)
+    end
     sim["test_pos_profiles"] = Array{Array{Float64,1},1}(undef,sim["Ntot"])
     
     if fill_pos_profiles
@@ -210,8 +229,6 @@ function init_testing!(sim::Dict, testing_params::Dict, i_day::Int, Ndays::Int; 
                         testing_params["protocol"])
     end
     
-
-
     return test_days, test_day_counter
 end
 
