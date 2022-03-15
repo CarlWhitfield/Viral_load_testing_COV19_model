@@ -11,3 +11,6 @@ notebooks/SCWG_updated_code/.ipynb_checkpoints/repeat_testing_stoch_update-check
 *.xlsx
 notebooks/*
 notebooks/*/*
+figures/*
+figures/*/*
+.ipynb_checkpoints/*
