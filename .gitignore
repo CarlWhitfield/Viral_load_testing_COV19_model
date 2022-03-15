@@ -9,3 +9,5 @@ notebooks/VL_models/
 notebooks/SCWG_updated_code/.ipynb_checkpoints/plotting_repeat_test_update-checkpoint.ipynb
 notebooks/SCWG_updated_code/.ipynb_checkpoints/repeat_testing_stoch_update-checkpoint.ipynb
 *.xlsx
+notebooks/*
+notebooks/*/*

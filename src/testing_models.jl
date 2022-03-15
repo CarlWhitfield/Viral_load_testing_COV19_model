@@ -268,13 +268,12 @@ function get_test_probs(VL_profile::Array{Float64,1}, TestDays::Array{Int64,1},
     return tp
 end
 
-function run_testing_scenario!(inf_profile_mod::Array{Float64,1}, inf_profile::Array{Float64,1}, 
+function run_testing_scenario!(isol_days::Array{Int64,1}, inf_profile::Array{Float64,1}, 
         test_pos::Array{Float64,1}, test_result_day::Array{Int64,1}, symp_day::Int64, symp_isol::Bool, 
         VL_profile::Array{Float64,1}, Conf_PCR::Array{Bool,1}, 
-        Preisolation::Array{Int64,1} = zeros(Int64,0); Day7release::Bool = false, 
-        Day67tests::Bool = true, Conf_PCR_fixed::Bool = false, Conf_PCR_sens = PCR_sens_max)
+        Preisolation::Array{Int64,1} = zeros(Int64,0); Day5release::Bool = false, 
+        Conf_PCR_fixed::Bool = false, Conf_PCR_sens = PCR_sens_max)
     
-    inf_profile_mod .= copy(inf_profile)
     isol_start_day = copy(test_result_day)
     isol_start_prob = copy(test_pos)
     isol_conf_PCR = copy(Conf_PCR)
@@ -289,31 +288,31 @@ function run_testing_scenario!(inf_profile_mod::Array{Float64,1}, inf_profile::A
     end
     go = true
     it = 1
-    isol_days = zeros(Int64,0)
+    empty!(isol_days)
     if length(Preisolation) > 0
-        isol_days = Preisolation
+        push!(isol_days,Preisolation...)
     end
     while go && it <= length(isol_start_day) && isol_start_day[it] <= length(inf_profile)
         if rand() < isol_start_prob[it]  #positive test or symp
-            isol_end = isol_start_day[it] + 9
-            if Day7release #can shorten isolation with negative tests on day 6 and 7
-                T1neg = true    #start with day 6 test as negative
-                T2neg = true    #start with day 7 test as negative
-                if Day67tests   #if day 6 and 7 tests are done check if either is positive
-                    if isol_start_day[it] + 5 <= length(VL_profile)  #if there is measurable viral load by day 6, generate test result 
-                        T1prob =  LFDtest_positive_prob(VL_profile[isol_start_day[it] + 5])
-                        T1neg = (rand() > T1prob)
-                    end
-                    if isol_start_day[it] + 6 <= length(VL_profile)
-                        T2prob =  LFDtest_positive_prob(VL_profile[isol_start_day[it] + 6])
-                        T2neg = (rand() > T2prob)
-                    end
+            isol_end = isol_start_day[it] + 10
+            if Day5release #test daily from day 4, released as soon as 2 consecutive are negative
+                DailyLFDResult = zeros(Bool, 6)
+                #assume negative once VL profile has ended
+                if length(VL_profile) > isol_start_day[it] + 4
+                    TestEnd = min(isol_start_day[it] + 9, length(VL_profile))
+                    DailyLFDProb = LFDtest_positive_prob.(VL_profile[isol_start_day[it] + 4:TestEnd])
+                    DailyLFDResult[1:length(DailyLFDProb)] = rand(length(DailyLFDProb)) .< DailyLFDProb
                 end
-                if T1neg && T2neg
-                    isol_end = isol_start_day[it] + 6
+                EndEarly = false
+                k = 5
+                while EndEarly == false && k < 10
+                    if DailyLFDResult[k - 4] == false && DailyLFDResult[1 + k - 4] == false
+                        isol_end = isol_start_day[it] + k
+                        EndEarly = true
+                    end
+                    k = k+1
                 end
             end
-            
             if isol_conf_PCR[it]  #assume confirmatory PCR is done immediately
                 if isol_start_day[it] <= length(VL_profile)
                     CPCRprob = 0
@@ -334,16 +333,13 @@ function run_testing_scenario!(inf_profile_mod::Array{Float64,1}, inf_profile::A
             else
                 go = false
             end
-            isol_days = vcat(isol_days,collect(isol_start_day[it]:1:isol_end))
+            if isol_end >= isol_start_day[it]
+                push!(isol_days, collect(isol_start_day[it]:1:(isol_end-1))...)
+            end
         end
         it = it + 1
     end
-    Nisol_days = length(isol_days)   #record actual number of isolation days
-    isol_days = Int.(isol_days[isol_days .<= length(inf_profile_mod)])
-    #isolation days to be applied
-    if length(isol_days) > 0
-        inf_profile_mod[isol_days] .= 0
-    end
+    Nisol_days = sum(isol_days)   #record actual number of isolation days
     
     return Nisol_days
 end

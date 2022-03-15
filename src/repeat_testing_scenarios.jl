@@ -3,8 +3,6 @@ include("viral_load_infectivity_testpos.jl")
 const scen_names = ["(b) Status Quo","(c1) Fortnightly concurrent PCR","(c2) Fortnightly random PCR", "(d) 3 LFDs per week","(e) 2 LFDs per week","(f) Daily LFDs","(g) Daily LFDs + PCR","(h) 3 LFDs + PCR",
     "(a) No testing"]
 
-use_ke_model = false
-
 function scenario_1_setup(Ndays::Int)   #2 LFDs + 1 concurrent PCR
     #assume day0 is random for each person
     test_day0 = rand(1:7)
@@ -236,8 +234,8 @@ end
 `sim_names` = Names of scenarios simulated
  """
 function run_testing_scenarios_impact(Ntot::Int, Pisol::Float64, LFD_comply::Float64, 
-                            Conf_PCR::Bool; Day7release_bool::Bool = false,
-                            Day67tests_bool::Bool = true, LFD_AllorNone::Bool = false)
+                            Conf_PCR::Bool; Day5release_bool::Bool = false,
+                            LFD_AllorNone::Bool = false)
     sim_baseline = init_VL_and_infectiousness(Ntot, Pisol)
     Nscens = length(scen_names)
     sim_scens = Array{Dict,1}(undef,Nscens)
@@ -250,7 +248,7 @@ function run_testing_scenarios_impact(Ntot::Int, Pisol::Float64, LFD_comply::Flo
         sim_scens[i]["isol_days"] = run_testing_scenario!.(sim_scens[i]["inf_profile_isolation"],
             sim_scens[i]["infection_profiles"],  sim_scens[i]["test_pos_prob"], sim_scens[i]["test_result_days"], 
             sim_scens[i]["symp_day"] .+ 1,  sim_scens[i]["will_isolate"], sim_scens[i]["VL_profiles"], 
-            sim_scens[i]["conf_PCR"]; Day7release=Day7release_bool, Day67tests=Day67tests_bool)
+            sim_scens[i]["conf_PCR"]; Day5release=Day5release_bool)
     end
     sim_baseline["test_pos_prob"] = fill(zeros(0),sim_baseline["Ntot"])
     sim_baseline["test_result_days"]  = fill(zeros(Int64,0),sim_baseline["Ntot"])
@@ -260,7 +258,7 @@ function run_testing_scenarios_impact(Ntot::Int, Pisol::Float64, LFD_comply::Flo
         sim_baseline["infection_profiles"], sim_baseline["test_pos_prob"],
         sim_baseline["test_result_days"], sim_baseline["symp_day"] .+ 1, 
         sim_baseline["will_isolate"], sim_baseline["VL_profiles"], 
-        Conf_PCR_h; Day7release=Day7release_bool, Day67tests=Day67tests_bool)
+        Conf_PCR_h; Day5release=Day5release_bool)
     sim_scens[Nscens] = copy(sim_baseline)
     for i in 1:(Nscens)
         sim_scens[i]["inf_days"] = zeros(Int64, Ntot)
@@ -275,7 +273,7 @@ end
 
 
 function get_no_testing_scenario(Ntot::Int, Pisol::Float64; 
-        Day7release_bool::Bool = false, Day67tests_bool::Bool = true)
+        Day5release_bool::Bool = false)
     sim_baseline = init_VL_and_infectiousness(Ntot, Pisol)
     sim_baseline["test_pos_prob"] = fill(zeros(0),sim_baseline["Ntot"])
     sim_baseline["test_result_days"]  = fill(zeros(Int64,0),sim_baseline["Ntot"])
@@ -285,14 +283,14 @@ function get_no_testing_scenario(Ntot::Int, Pisol::Float64;
         sim_baseline["infection_profiles"], sim_baseline["test_pos_prob"],
         sim_baseline["test_result_days"], sim_baseline["symp_day"] .+ 1, 
         sim_baseline["will_isolate"], sim_baseline["VL_profiles"], 
-        Conf_PCR_h; Day7release=Day7release_bool, Day67tests=Day67tests_bool)
+        Conf_PCR_h; Day5release=Day5release_bool)
 
     return sim_baseline
 end
 
 function run_testing_scenarios_vs_baseline(sim_baseline::Dict, LFD_comply::Float64, 
-                                      Conf_PCR::Bool; Day7release_bool::Bool = false,
-                            Day67tests_bool::Bool = true, LFD_AllorNone::Bool = false)
+                                      Conf_PCR::Bool; Day5release_bool::Bool = false,
+                                      LFD_AllorNone::Bool = false)
     Ntot = sim_baseline["Ntot"]
     Nscens = length(scen_names)
     sim_scens = Array{Dict,1}(undef,Nscens)
@@ -305,7 +303,7 @@ function run_testing_scenarios_vs_baseline(sim_baseline::Dict, LFD_comply::Float
         sim_scens[i]["isol_days"] = run_testing_scenario!.(sim_scens[i]["inf_profile_isolation"],
             sim_scens[i]["infection_profiles"],  sim_scens[i]["test_pos_prob"], sim_scens[i]["test_result_days"], 
             sim_scens[i]["symp_day"] .+ 1,  sim_scens[i]["will_isolate"], sim_scens[i]["VL_profiles"], 
-            sim_scens[i]["conf_PCR"]; Day7release=Day7release_bool, Day67tests=Day67tests_bool)
+            sim_scens[i]["conf_PCR"]; Day5release=Day5release_bool)
     end
     sim_scens[Nscens] = copy(sim_baseline)
     for i in 1:(Nscens)
