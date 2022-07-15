@@ -13,10 +13,15 @@ const PCR_VL0 = 8.522/4.408
 const PCR_VLdisp = 4.408
 const VL_LOD_PCR = 1.0      #Ct cutoff value for +ve test -- assumed from UKHSA data
 
-#====> LFD params (Porton Down) <====#
+#====> LFD params (Porton Down phase 2) <====#
 const LFD_VLmean = 10.836/2.680
 const LFD_VLstd = 1.0/2.680
 const LFD_sens_max = 0.75 #assumed
+
+#====> LFD params (Porton Down phase 3b) <====#
+const LFD_VL0_pd3b = 3.593/1.222
+const LFD_VLk_pd3b = 1.222
+const LFD_self_sens = 58.5/78.8
 
 #====> LFD params (Care Home Data) <====#
 const VL_lims_2021 = collect(2.0:1.0:7.0)
@@ -48,6 +53,8 @@ Scaled logistic function
 function logistic_function(x::Float64, x0::Float64, k::Float64, ymax::Float64)
     return (ymax / (1  + exp(-k*(x-x0))))
 end
+
+
 
 """
     probit_function(x::Float64, x0::Float64, xstd::Float64, ymax::Float64)
@@ -111,39 +118,24 @@ function LFDtest_positive_prob(VL::Float64)
         return LFD_relsens_Oct[1+VLcat]*PCR_prob
     elseif LFD_model == porton_down
         return probit_function(VL, LFD_VLmean, LFD_VLstd, LFD_sens_max)
+    elseif LFD_model == porton_down_p3b
+        return logistic_function(VL, LFD_VL0_pd3b, LFD_VLk_pd3b, LFD_self_sens)*PCR_prob
     end
 end
 
-# """ old version
-#     LFDtest_positive_prob1(VL::Float64, sens_rel::Float64=1.0)
 
-# LFD test positive probability given a viral load
 
-# ## Arguments: 
-# `VL` = viral load value
-# `sens_rel` = relative sensitivity scaling factor (default 1)
-
-# ## Returns: 
-# `Float64` = test positive probability
-# """
-# function LFDtest_positive_prob(VL::Float64, sens_rel::Float64=1.0)
-#     #sens rel is 1 in Peto et al, could scale this for self-administering effects (sens rel < 1)
-#     return sens_rel*probit_function(VL, LFD_VLmean, LFD_VLstd, LFD_sens_max)
-# end
 
 function get_pos_profile(sim::Dict, ip::Int, protocol::Int)
     sens_scale = 1.0
     Do_test_prob = 1.0
-    if haskey(sim, "P_do_test")
-        Do_test_prob = sim["P_do_test"]
-    end
     if haskey(sim,"test_sens_scale")
         sens_scale = sim["test_sens_scale"]
     end
     if protocol == PCR_mass_protocol
-        sim["test_pos_profiles"][ip] = sens_scale .* Do_test_prob .* PCRtest_positive_prob.(sim["VL_profiles"][ip])
-    elseif protocol == LFD_mass_protocol
-        sim["test_pos_profiles"][ip] = sens_scale .* Do_test_prob .* LFDtest_positive_prob.(sim["VL_profiles"][ip])
+        sim["test_pos_profiles"][ip] = sens_scale .* PCRtest_positive_prob.(sim["VL_profiles"][ip])
+    elseif protocol == LFD_mass_protocol || protocol == LFD_pattern
+        sim["test_pos_profiles"][ip] = sens_scale .* LFDtest_positive_prob.(sim["VL_profiles"][ip])
     end
 end
 
@@ -177,8 +169,9 @@ Function to initialise test positive profiles and test isolation probabilities
 ## See also: 
 `init_VL_and_infectiousness(Ntot::Int, Pisol::Float64)`
 """
-function init_testing!(sim::Dict, testing_params::Dict, i_day::Int, Ndays::Int; fill_pos_profiles::Bool=true,
-                       different_start::Bool=false)
+function init_testing!(sim::Dict, testing_params::Dict, i_day::Int, Ndays::Int,
+                       start_times::Array{Int,1}; fill_pos_profiles::Bool=true,
+                       pattern::Array{Bool,1}=Array{Bool,1}(undef,0))
     #add test positivity profiles to simulation Dict, i_day is start day, Ndays is total length of sim
     #testing params contains "tperiod" (days between test)
     #testing params contains "protocol" (LFD_mass_protocol or PCR_mass_protocol)
@@ -187,43 +180,64 @@ function init_testing!(sim::Dict, testing_params::Dict, i_day::Int, Ndays::Int; 
     #optional: sens_rel: relative scaling of test sensitivity (does not effect spec)
     #optional: policy_adherence: if "testing_enforced" is false, independent probability of adhering to testing
     #(has same effect as sens_rel on test sensitivity, but also affect false positives)
+    
     sim["test_protocol"] = testing_params["protocol"]
+    sim["test_sens_scale"] = 1.0
     if haskey(testing_params,"sens_rel")
         sim["test_sens_scale"] = testing_params["sens_rel"]
     end
+    sim["P_do_test"] = 1.0
     if (testing_params["testing_enforced"] == false) && haskey(testing_params,"test_miss_prob")
-        sim["P_do_test"] = 1.0 - testing_params["test_miss_prob"]
+        sim["P_do_test"] -= testing_params["test_miss_prob"]
     end
-    
+
     sim["will_isolate_with_test"] = ones(Bool,sim["Ntot"])
-    if testing_params["testing_enforced"] == false  #if not enforced, we assume same group who does not isolate with symps does not isolate with tests (simplification)
+    if testing_params["testing_enforced"] == false  
         if haskey(testing_params,"policy_adherence")
             non_adherers = randsubseq(1:sim["Ntot"], 1 - testing_params["policy_adherence"])
             sim["will_isolate_with_test"][non_adherers] .= false
-        else
+        else 
+            #if param not given we assume same group who does not isolate with symps 
+            #does not isolate with tests (simplification)
             sim["will_isolate_with_test"][sim["non_isolators"]] .= false
         end
     end
     sim["testing_paused"] = zeros(Bool,sim["Ntot"])
     sim["resume_testing"] = -ones(Int64,sim["Ntot"])
     
-    if different_start
-        test_days0 = rand(1:testing_params["tperiod"],sim["Ntot"])
-        test_days = Array{Array{Int64,1},1}(undef,sim["Ntot"])
-        test_day_counter = ones(Int64,sim["Ntot"])
-        for i in 1:sim["Ntot"]
-            test_days[i] = collect(test_days0[i]:testing_params["tperiod"]:Int64(ceil(Ndays)))
-            test_days[i] = push!(test_days[i], test_days[i][end] + testing_params["tperiod"])
-            test_day_counter[i] = 1 + sum(test_days[i] .< i_day)
-        end
-    else
-        test_day0 = rand(1:testing_params["tperiod"])
-        test_days = collect(test_day0:testing_params["tperiod"]:Int64(ceil(Ndays)))
-        test_days = push!(test_days, test_days[end] + testing_params["tperiod"])
-        test_day_counter = 1 + sum(test_days .< i_day)
+    test_days = Array{Array{Int64,1},1}(undef,sim["Ntot"])
+    test_day_counter = ones(Int64,sim["Ntot"])
+    if haskey(sim,"non_testers") == false
+        sim["non_testers"] = zeros(Bool,sim["Ntot"])
     end
-    sim["test_pos_profiles"] = Array{Array{Float64,1},1}(undef,sim["Ntot"])
     
+    if length(pattern) > 0  #pattern given by user
+        Npattern = length(pattern)
+        bool_pattern = repeat(pattern,Int64(ceil(Ndays/Npattern)+1)) 
+    else    #regular pattern
+        Npattern = testing_params["tperiod"]
+        bool_pattern = zeros(Bool,Int64(ceil(Ndays + Npattern)))
+        bool_pattern[1:Npattern:length(bool_pattern)] .= true
+    end
+    
+    #fill test days
+    for i in 1:sim["Ntot"]
+        if sim["non_testers"][i]
+            test_days[i] = Array{Int64,1}(undef,0) 
+        else
+            idays = 1:Ndays
+            td_all = idays[bool_pattern[start_times[i]:(start_times[i]+Ndays-1)]]  #get all scheduled tests
+            #apply adherence
+            if sim["P_do_test"] < 1.0
+                test_days[i] = randsubseq(td_all, sim["P_do_test"])
+            else
+                test_days[i] = td_all
+            end   
+        end
+        test_day_counter[i] = 1 + sum(test_days[i] .< i_day)
+    end
+        
+    sim["test_pos_profiles"] = Array{Array{Float64,1},1}(undef,sim["Ntot"])
     if fill_pos_profiles
         sim["test_pos_profiles"] .= get_pos_profile.(Ref(sim), 1:sim["Ntot"], 
                         testing_params["protocol"])
@@ -292,7 +306,9 @@ function run_testing_scenario!(isol_days::Array{Int64,1}, inf_profile::Array{Flo
     if length(Preisolation) > 0
         push!(isol_days,Preisolation...)
     end
-    while go && it <= length(isol_start_day) && isol_start_day[it] <= length(inf_profile)
+        
+    
+    while go && it <= length(isol_start_day) && isol_start_day[it] <= length(VL_profile)
         if rand() < isol_start_prob[it]  #positive test or symp
             isol_end = isol_start_day[it] + 10
             if Day5release #test daily from day 4, released as soon as 2 consecutive are negative

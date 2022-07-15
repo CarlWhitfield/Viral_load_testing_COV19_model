@@ -10,7 +10,6 @@ Only to be included by definitions.jl
 
 #====> Linear or flat inf models <====#
 const inf_dep = 1.3           #Marks 2020 VL vs peak inf dep
-const VL_ref = peakVL_mean    #reference viral load
 const PIsigma = 0.1           #infectivity noise
 const PImu = -0.5*PIsigma^2   #relative mean
 #Viral load where people stop being infectious
@@ -18,8 +17,17 @@ const inf_VL_cutoff = 6.0
 #this scaling means that, on average, the infectivity is 1.0 over the 10-day period
 const j0scale = 4.7
 
-#=================================================================#
 
+#=================================================================#
+function get_mean_peak_VL()
+    if VL_model == ke_model_no
+        return Kmvμ[1]/log(10)
+    elseif VL_model == kissler_model_no
+        return 7.5
+    end
+end
+
+VL_ref = get_mean_peak_VL()
 function generate_peak_infectivity(peak_VL::Float64)
     if peak_inf_opt == marks_peakinf_opt 
         #assume reference person has average infectivity of 1 (so peak of 2)

@@ -13,6 +13,7 @@ Written by Carl Whitfield, University of Manchester, 2021
 #onset_opt = V0_model_opt        #IF using kissler VL model, option for how to generate onset time
 #peak_inf_opt = marks_peakinf_opt   #IF using flat or linear inf model, what function is used for peak value
 #PCR_TaT_scale = 1.0
+#VL_inf_corr = false     #IF using Ke model, correlation between peak VL and peak inf
 #===============================================================#
 
 include("definitions.jl")
@@ -22,6 +23,8 @@ function generate_VL_params(Asymp::Bool)
         return generate_VL_params_Kissler(Asymp)
     elseif VL_model == ke_model_no
         return generate_ke_VL_params()
+    elseif VL_model == HCS_model_no
+        return generate_VL_params_HCS()
     end
 end
 
@@ -68,8 +71,23 @@ end
 function infectivity(PVL::Float64, r::Float64, d::Float64, tp::Float64,
                      T::Int64)
     if Inf_model == ke_inf_model_no
-        J,h = generate_ke_inf_params()
-        inf = infectivity_Ke(PVL, r, d, tp, J, h, T)
+        if VL_inf_corr
+            if VL_model == ke_model_no
+                J, h = generate_ke_inf_params_correlated(PVL, Kmvμ[1]/log(10), sqrt(KmvΣ[1,1])/log(10))
+            elseif VL_model == kissler_model_no
+                J, h = generate_ke_inf_params_correlated(PVL, peakVL_mean, peakVL_sd)
+            else   #cannot do correlated draw for other models
+                J, h = generate_ke_inf_params_uncorrelated()
+            end
+        else
+            J, h = generate_ke_inf_params_uncorrelated()
+        end
+        if VL_model == kissler_model_no
+            opt = 1
+        else
+            opt = 0
+        end
+        inf = infectivity_Ke(PVL, r, d, tp, J, h, T; scale_opt = opt)
     elseif Inf_model == flat_inf_model_no
         PInf = generate_peak_infectivity(PVL)
         #divide by 2 so area under inf curve same as linear case
@@ -98,7 +116,6 @@ Generate a viral load and infectivity trajectory
 function build_viral_load_distribution!(sim::Dict, index::Int64)
     Asymp = generate_asymptomatic()
     PVL, tp, r, d = generate_VL_params(Asymp)
-
     T = Int64(ceil(tp + log(10)*(PVL - VL_LOD_PCR)/d))
     if T < 1
         print("Strange parameter set generated: PVL = ", PVL,
@@ -214,10 +231,6 @@ function init_VL_and_infectiousness(Ntot::Int, Pisol::Float64)
                "infection_profiles"=>Array{Array{Float64,1},1}(undef,Ntot),
                "VL_profiles"=>Array{Array{Float64,1},1}(undef,Ntot),
                "days_infectious" => zeros(Int64,Ntot))
-#     for i in 1:Ntot
-#         push!(sim["infection_profiles"],zeros(0))
-#         push!(sim["VL_profiles"],zeros(0))
-#     end
     build_viral_load_distributions!(sim)
     sim["will_isolate"][generate_isolations(Ntot, Pisol)] .= true
     nr = 1:sim["Ntot"]

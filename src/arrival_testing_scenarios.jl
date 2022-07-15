@@ -1,6 +1,10 @@
-include("viral_load_infectivity_testpos_v2.jl")
+include("viral_load_infectivity_testpos.jl")
 
 const arrival_scen_names = ["Day 2 PCR","Daily LFD","Both"]
+
+VL_model = kissler_model_no 
+Inf_model = flat_inf_model_no
+peak_inf_opt = unif_peakinf_opt
 
 function arrival_scenario_1_setup(start_day::Int, max_PCR_day::Int, pre_LFD::Bool = false,
                                   pre_LFD_time::Int = 2)   #1 PCR in first 2 days
@@ -152,10 +156,22 @@ function run_testing_flight_arrivals(Ntot::Int64, PIsol::Float64,
         sim_scen = copy(sim_baseline)
         init_testing_random_start!(sim_scen, tp)
         #Need to sort out symp_day
-        sim_scen["inf_profile_isolation"] = run_testing_scenario.(sim_scen["infection_profiles"], 
+        
+        isolation_days = Array{Array{Int64,1},1}(undef,Ntot)
+        for i in 1:Ntot
+            isolation_days[i] = zeros(0)
+        end
+        sim_scen["isol_days"] = run_testing_scenario!.(isolation_days, sim_scen["infection_profiles"], 
             sim_scen["test_pos_prob"], sim_scen["test_result_days"], sim_scen["symp_day"] .+ 1, 
             sim_scen["will_isolate"], sim_scen["VL_profiles"],  sim_scen["conf_PCR"],
             sim_scen["preisolation"])
+        
+        sim_scen["inf_profile_isolation"] = deepcopy(sim_scen["infection_profiles"])
+        for i in 1:Ntot
+            valid_isol_days = isolation_days[i][isolation_days[i] .<= length(sim_scen["inf_profile_isolation"][i])]
+            sim_scen["inf_profile_isolation"][i][valid_isol_days] .= 0
+        end
+    
         sims[n] = sim_scen
     end
         

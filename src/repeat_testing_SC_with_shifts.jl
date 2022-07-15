@@ -2,13 +2,14 @@ include("viral_load_infectivity_testpos.jl")
 
 const scen_names = ["(b) Status Quo","(c1) Fortnightly concurrent PCR","(c2) Fortnightly random PCR", "(d) 3 LFDs per week","(e) 2 LFDs per week","(f) Daily LFDs","(g) Daily LFDs + PCR","(h) 3 LFDs + PCR",
     "(a) No testing"]
-    
+
+#define shift patterns
 const shift_pattern = [true, true, true, true, false, false, false, 
                        true, true, true, true, true, false, false]
 const twolfd_pattern = [true, false, true, false, false, false, false,
-                           true, false, false, true, false, false, false]
+                        true, false, false, true, false, false, false]
 const threelfd_pattern = [true, false, true, true, false, false, false,
-                           true, false, true, false, true, false, false]
+                          true, false, true, false, true, false, false]
 
 function scenario_1_setup(Ndays::Int, shift_pattern_start::Int)   #2 LFDs + 1 concurrent PCR
     #PCRs happen from first Monday
@@ -147,9 +148,6 @@ function scenario_8_setup(Ndays::Int, shift_pattern_start::Int)   #3 LFDs + 1 co
     return TestDays[itd], TestTypes[itd], ResultDays[itd]
 end
 
-
-
-
 """
     init_testing_random!(sim::Dict, testing_params::Dict, i_day::Int, Ndays::Int)
 
@@ -271,7 +269,6 @@ function run_testing_scenarios_vs_baseline(sim_baseline::Dict, LFD_comply::Float
         sim_scens[i]["inf_profile_isolation"] = copy(sim_scens[i]["infection_profiles"])
         Ndays = length.(sim_scens[i]["VL_profiles"])
         Nrepeats = Int64.(ceil.((Ndays .- 13 .+ sim_scens[i]["shift_pattern_start_day"]) ./ 14))
-#         print("Scenario ",i,'\n')
         for j in 1:Ntot
             if length(sim_scens[i]["isol_days"][j]) > 0
                 maxisolday = max(sim_scens[i]["isol_days"][j]...)
@@ -281,29 +278,18 @@ function run_testing_scenarios_vs_baseline(sim_baseline::Dict, LFD_comply::Float
             end
             shifts = vcat(shift_pattern[sim_scens[i]["shift_pattern_start_day"][j]:end], 
                           repeat(shift_pattern,Nrepeats[j]))
-#             print("Shifts: ", shifts, '\n')
             inf_shifts = shifts[1:Ndays[j]]
-#             print("Inf Shifts: ", inf_shifts, '\n')
             #count people as not infectious if not at work
-#             print("Infectious profile raw: ", sim_scens[i]["infection_profiles"][j], '\n')
             sim_scens[i]["infection_profiles"][j][inf_shifts .== false] .= 0.0
-#             print("Infectious profile shifts removed: ", sim_scens[i]["infection_profiles"][j], '\n')
             #extract isolation days that occur in infectious window
-#             print("Isolation days: ", sim_scens[i]["isol_days"][j], '\n')
             inf_isol_days = sim_scens[i]["isol_days"][j][sim_scens[i]["isol_days"][j] .<= 
                                             length(sim_scens[i]["infection_profiles"][j])]
-#             print("Infectious Isolation days: ", inf_isol_days, '\n')
             #copy over infectious profile with shifts removed
             sim_scens[i]["inf_profile_isolation"][j] = copy(sim_scens[i]["infection_profiles"][j])
             #set isolation days to zero in modified inf profile
             sim_scens[i]["inf_profile_isolation"][j][inf_isol_days] .= 0.0
-#             print("Infectious profile isolation removed: ", sim_scens[i]["inf_profile_isolation"][j], '\n')
             sim_scens[i]["inf_days"][j] = sum((sim_scens[i]["inf_profile_isolation"][j] .> 0))
-#             print("Infectious days worked: ", sim_scens[i]["inf_days"][j], '\n')
-            #number of isol days in work
             sim_scens[i]["tot_work_isol_days"][j] = sum(shifts[sim_scens[i]["isol_days"][j]])
-#             print("Work days missed due to isolation: ", sim_scens[i]["tot_work_isol_days"][j], '\n')
-#             print("\n\n")
         end
     end
     

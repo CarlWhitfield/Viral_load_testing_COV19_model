@@ -16,13 +16,13 @@ using SpecialFunctions
 using Plots
 
 #testing protocol definitions
-const PCR_mass_protocol, LFD_mass_protocol = 1,2
+const PCR_mass_protocol, LFD_mass_protocol, LFD_pattern = 1,2,3
 #LFD sens definitions
-const SC_data_2021, SC_data_Oct, porton_down = 1,2,3
+const SC_data_2021, SC_data_Oct, porton_down, porton_down_p3b = 1,2,3,4
 #Infectivity model definitions
 const ke_inf_model_no, flat_inf_model_no, linear_inf_model_no = 1,2,3
 #VL model definitions
-const ke_model_no, kissler_model_no = 1,2   
+const ke_model_no, kissler_model_no, HCS_model_no = 1,2,3   
 #options definitons for kissler model
 const V0_model_opt, PVT_model_opt = 1,2   
 #options for infectivity model
@@ -33,10 +33,11 @@ VL_model = ke_model_no         #choice of viral load model (Ke et al is default)
 LFD_model = SC_data_2021         #choice of LFD sensitivity model (social care binned 2021 data is default)
 PCR_sens_max = 0.83           #max PCR sensitivity (Ferretti et al 2021)
 Inf_model = ke_inf_model_no    #infectivity model
-p_asymp = 0.5                  #asymptomatic fraction
 onset_opt = V0_model_opt        #IF using kissler VL model, option for how to generate onset time
 peak_inf_opt = marks_peakinf_opt   #IF using flat or linear inf model, what function is used for peak 
 PCR_TaT_scale = 1.0    #scale PCR delays by this factor
+VL_inf_corr = false
+const DefaultPasymp = 0.5
 
 #===================== Symptoms onset timing =====================#
 
@@ -49,6 +50,7 @@ include("Kissler_VL_model.jl")
 include("Ke_VL_inf_models.jl")
 include("testing_models.jl")
 include("Alt_inf_models.jl")
+include("HCS_VL_model.jl")
 
 """
     generate_asymptomatic()
@@ -60,7 +62,7 @@ somebody will develop symptoms.
 `Bool` = whether or not the person in asymptomatic (true = 
           asymptomatic, false = symptoms)
 """
-function generate_asymptomatic()
+function generate_asymptomatic(p_asymp::Float64 = DefaultPasymp)
     #randomly generate if people are asymptomatic
     return (rand() < p_asymp)
 end
