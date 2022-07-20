@@ -9,7 +9,6 @@ Written by Carl Whitfield, University of Manchester, 2021
 #LFD_model = SC_data_2021         #choice of LFD sensitivity model (social care binned 2021 data is default)
 #PCR_sens_max = 0.83            #max PCR sensitivity (Ferretti et al 2021)
 #Inf_model = ke_inf_model_no    #infectivity model
-#p_asymp = 0.5                  #asymptomatic fraction
 #onset_opt = V0_model_opt        #IF using kissler VL model, option for how to generate onset time
 #peak_inf_opt = marks_peakinf_opt   #IF using flat or linear inf model, what function is used for peak value
 #PCR_TaT_scale = 1.0

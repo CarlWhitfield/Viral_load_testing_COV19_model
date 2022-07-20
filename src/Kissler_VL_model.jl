@@ -25,13 +25,49 @@ Only to be included by definitions.jl
 # const DTsympdist = Gamma(alpha_decay_symp,1.0/beta_decay)
 # const DTasympdist = Gamma(alpha_decay_asymp,1.0/beta_decay)
 
-#Import posterior directly
-df_symp_kissler = DataFrame(CSV.File("/Users/carlwhitfield/Documents/Github/Viral_load_testing_COV19_model/src/df_symp_kissler.csv"))
-df_asymp_kissler = DataFrame(CSV.File("/Users/carlwhitfield/Documents/Github/Viral_load_testing_COV19_model/src/df_asymp_kissler.csv"))
+let filepath = @__FILE__
+    current_dir = dirname(filepath)
+    Kissler_symp_path = joinpath(current_dir,"df_symp_kissler.csv")
+    Kissler_asymp_path = joinpath(current_dir,"df_asymp_kissler.csv")
+    if isfile(Kissler_symp_path) && isfile(Kissler_asymp_path)
+        print("Loading Kissler dataset...\n")
+        global df_symp_kissler = DataFrame(CSV.File(Kissler_symp_path))
+        global df_asymp_kissler = DataFrame(CSV.File(Kissler_asymp_path))
+    else
+        print("Downloading Kissler dataset...\n")
+        data_url = "https://raw.githubusercontent.com/gradlab/CtTrajectories/main/output/params_df_split.csv"
+        res = HTTP.get(data_url);
+        kissler_df = DataFrame(CSV.File(res.body))  #import data
+        #covert to PE parameters used here
+        VL_lod = (40.93733 - 40)/3.60971 + log10(250);
+        VLs = VL_lod .+ kissler_df[:,"dp"]./3.60971
+        r_slopes = (VLs .- VL_lod)./kissler_df[:,"wp"];
+        d_slopes = (VLs .- VL_lod)./kissler_df[:,"wr"];
+
+        #output symp and asymp data separately
+        symp_dict = Dict()
+        bool_symp = (kissler_df[:,"symptomatic"].==1)
+        symp_dict[:VL] = VLs[bool_symp]
+        symp_dict[:gr] = r_slopes[bool_symp]
+        symp_dict[:dr] = d_slopes[bool_symp];
+
+        asymp_dict = Dict()
+        bool_asymp = (kissler_df[:,"symptomatic"].==0)
+        asymp_dict[:VL] = VLs[bool_asymp]
+        asymp_dict[:gr] = r_slopes[bool_asymp]
+        asymp_dict[:dr] = d_slopes[bool_asymp];
+
+        global df_symp_kissler = DataFrame(symp_dict)
+        global df_asymp_kissler = DataFrame(asymp_dict)
+        
+        CSV.write(Kissler_symp_path, df_symp_kissler)
+        CSV.write(Kissler_asymp_path, df_asymp_kissler)
+    end
+end
+
 const V_0 = 0.5255                  #from Ferretti (initial VL) (if using V0_model_opt)
 const onset_frac = 0.38             #frac of peak time added before peak (if using PVT_model_opt)
 const VL_LOD_Kissler = log10(250) - 0.93733/3.60971  #Limit of Detection in Kissler study
-
 
 """ 
     generate_VL_params_Kissler(Asymp::Bool)

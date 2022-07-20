@@ -14,6 +14,8 @@ using Random
 using StatsBase
 using SpecialFunctions
 using Plots
+using HTTP
+using Base
 
 #testing protocol definitions
 const PCR_mass_protocol, LFD_mass_protocol, LFD_pattern = 1,2,3
