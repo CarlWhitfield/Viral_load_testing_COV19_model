@@ -1,7 +1,8 @@
 include("viral_load_infectivity_testpos.jl")
 
-const scen_names = ["(b) Status Quo","(c1) Fortnightly concurrent PCR","(c2) Fortnightly random PCR", "(d) 3 LFDs per week","(e) 2 LFDs per week","(f) Daily LFDs","(g) Daily LFDs + PCR","(h) 3 LFDs + PCR",
-    "(a) No testing"]
+const scen_names = ["(b) Status Quo","(c1) Fortnightly concurrent PCR","(c2) Fortnightly random PCR", 
+                    "(d) 3 LFDs per week","(e) 2 LFDs per week","(f) Daily LFDs","(g) Daily LFDs + PCR",
+                    "(h) 3 LFDs + PCR","(a) No testing"]
 
 #define shift patterns
 const shift_pattern = [true, true, true, true, false, false, false, 
@@ -247,20 +248,23 @@ end
 
 function run_testing_scenarios_vs_baseline(sim_baseline::Dict, LFD_comply::Float64, 
                                       Conf_PCR::Bool; Day5release_bool::Bool = false,
-                                      LFD_AllorNone::Bool = false)
+                                      LFD_AllorNone::Bool = false,
+                                      ScensToRun = collect(1:(length(scen_names)-1)))
     Ntot = sim_baseline["Ntot"]
-    Nscens = length(scen_names)
+    Nscens = length(ScensToRun)
     sim_scens = Array{Dict,1}(undef,Nscens)
-    for i in 1:(Nscens-1)
-        sim_scens[i] = copy(sim_baseline)
-        init_testing_random!(sim_scens[i], Dict("scenario"=>scen_names[i],
-                 "comply_prob"=>LFD_comply, "aon_compliance"=>LFD_AllorNone), Conf_PCR)
-        
-        sim_scens[i]["isol_days"] = copy.(sim_baseline["isol_days"])
-        sim_scens[i]["tot_isol_days"] = run_testing_scenario!.(sim_scens[i]["isol_days"],
-            sim_scens[i]["infection_profiles"],  sim_scens[i]["test_pos_prob"], sim_scens[i]["test_result_days"], 
-            sim_scens[i]["symp_day"] .+ 1,  sim_scens[i]["will_isolate"], sim_scens[i]["VL_profiles"], 
-            sim_scens[i]["conf_PCR"]; Day5release=Day5release_bool)
+    for i in 1:Nscens
+        if ScensToRun[i] != length(scen_names)
+            sim_scens[i] = copy(sim_baseline)
+            init_testing_random!(sim_scens[i], Dict("scenario"=>scen_names[ScensToRun[i]],
+                     "comply_prob"=>LFD_comply, "aon_compliance"=>LFD_AllorNone), Conf_PCR)
+
+            sim_scens[i]["isol_days"] = copy.(sim_baseline["isol_days"])
+            sim_scens[i]["tot_isol_days"] = run_testing_scenario!.(sim_scens[i]["isol_days"],
+                sim_scens[i]["infection_profiles"],  sim_scens[i]["test_pos_prob"], sim_scens[i]["test_result_days"], 
+                sim_scens[i]["symp_day"] .+ 1,  sim_scens[i]["will_isolate"], sim_scens[i]["VL_profiles"], 
+                sim_scens[i]["conf_PCR"]; Day5release=Day5release_bool)
+        end
     end
     sim_scens[Nscens] = copy(sim_baseline)
     for i in 1:Nscens
@@ -293,7 +297,7 @@ function run_testing_scenarios_vs_baseline(sim_baseline::Dict, LFD_comply::Float
         end
     end
     
-    return sim_scens, scen_names
+    return sim_scens, scen_names[ScensToRun]
 end
 
 

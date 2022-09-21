@@ -290,13 +290,14 @@ end
 
 function run_testing_scenarios_vs_baseline(sim_baseline::Dict, LFD_comply::Float64, 
                                       Conf_PCR::Bool; Day5release_bool::Bool = false,
-                                      LFD_AllorNone::Bool = false)
+                                      LFD_AllorNone::Bool = false, 
+                                      ScensToRun = collect(1:(length(scen_names)-1)))
     Ntot = sim_baseline["Ntot"]
-    Nscens = length(scen_names)
+    Nscens = length(ScensToRun)
     sim_scens = Array{Dict,1}(undef,Nscens)
-    for i in 1:(Nscens-1)
+    for i in 1:Nscens
         sim_scens[i] = copy(sim_baseline)
-        init_testing_random!(sim_scens[i], Dict("scenario"=>scen_names[i],
+        init_testing_random!(sim_scens[i], Dict("scenario"=>scen_names[ScensToRun[i]],
                  "comply_prob"=>LFD_comply, "aon_compliance"=>LFD_AllorNone), Conf_PCR)
         
         sim_scens[i]["inf_profile_isolation"] = copy.(sim_scens[i]["infection_profiles"])
@@ -313,5 +314,5 @@ function run_testing_scenarios_vs_baseline(sim_baseline::Dict, LFD_comply::Float
         end
     end
     
-    return sim_scens, scen_names
+    return sim_scens, scen_names[ScensToRun]
 end

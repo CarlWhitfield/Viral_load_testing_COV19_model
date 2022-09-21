@@ -6,6 +6,7 @@
 # Pkg.add("StatsBase")
 # Pkg.add("SpecialFunctions")
 # Pkg.add("Plots")
+# Pkg.add("ReadOnlyArrays")
 
 using DataFrames
 using CSV
@@ -16,6 +17,7 @@ using SpecialFunctions
 using Plots
 using HTTP
 using Base
+using ReadOnlyArrays
 
 #testing protocol definitions
 const PCR_mass_protocol, LFD_mass_protocol, LFD_pattern = 1,2,3
@@ -40,11 +42,15 @@ peak_inf_opt = marks_peakinf_opt   #IF using flat or linear inf model, what func
 PCR_TaT_scale = 1.0    #scale PCR delays by this factor
 VL_inf_corr = false
 const DefaultPasymp = 0.5
+Pasymp = DefaultPasymp
 
 #===================== Symptoms onset timing =====================#
 
-const symp_beta = 4.84 / 2.6^2
-const symp_alpha = 4.84 * symp_beta
+const Default_symp_beta = 4.84 / 2.6^2
+const Default_symp_alpha = 4.84 * Default_symp_beta
+const DefaultSympDayMean = mean(Gamma(Default_symp_alpha,1.0/Default_symp_beta))
+symp_beta = Default_symp_beta
+symp_alpha = Default_symp_alpha
 
 #=================================================================#
 
@@ -64,7 +70,7 @@ somebody will develop symptoms.
 `Bool` = whether or not the person in asymptomatic (true = 
           asymptomatic, false = symptoms)
 """
-function generate_asymptomatic(p_asymp::Float64 = DefaultPasymp)
+function generate_asymptomatic(p_asymp::Float64 = Pasymp)
     #randomly generate if people are asymptomatic
     return (rand() < p_asymp)
 end

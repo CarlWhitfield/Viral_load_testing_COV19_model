@@ -19,9 +19,12 @@ const LFD_VLstd = 1.0/2.680
 const LFD_sens_max = 0.75 #assumed
 
 #====> LFD params (Porton Down phase 3b) <====#
-const LFD_VL0_pd3b = 3.593/1.222
-const LFD_VLk_pd3b = 1.222
-const LFD_self_sens = 58.5/78.8
+const DefaultLFD_VL0_pd3b = 3.593/1.222
+LFD_VL0_pd3b = DefaultLFD_VL0_pd3b
+const DefaultLFD_VLk_pd3b = 1.222
+LFD_VLk_pd3b = DefaultLFD_VLk_pd3b
+const DefaultLFD_self_sens = 58.5/78.8
+LFD_self_sens = DefaultLFD_self_sens
 
 #====> LFD params (Care Home Data) <====#
 const VL_lims_2021 = collect(2.0:1.0:7.0)
