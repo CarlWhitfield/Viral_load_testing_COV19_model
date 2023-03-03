@@ -28,9 +28,12 @@ LFD_self_sens = DefaultLFD_self_sens
 
 #====> LFD params (Care Home Data) <====#
 const VL_lims_2021 = collect(2.0:1.0:7.0)
-const LFD_relsens_2021 = [0.004,0.025,0.087,0.162,0.414,0.651,0.8]
+const Default_LFD_relsens_2021 = [0.004,0.025,0.087,0.162,0.414,0.651,0.8]
+LFD_relsens_2021 = Default_LFD_relsens_2021
 const VL_lims_Oct = [4.0,6.0]
 const LFD_relsens_Oct = [0.032, 0.255, 0.477]
+
+
 
 const PCRTATdist = Gamma(6.75,20/3)
 

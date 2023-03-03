@@ -252,7 +252,7 @@ function run_testing_scenarios_vs_baseline(sim_baseline::Dict, LFD_comply::Float
                                       ScensToRun = collect(1:(length(scen_names)-1)))
     Ntot = sim_baseline["Ntot"]
     Nscens = length(ScensToRun)
-    sim_scens = Array{Dict,1}(undef,Nscens)
+    sim_scens = Array{Dict,1}(undef,Nscens+1)
     for i in 1:Nscens
         if ScensToRun[i] != length(scen_names)
             sim_scens[i] = copy(sim_baseline)
@@ -266,8 +266,8 @@ function run_testing_scenarios_vs_baseline(sim_baseline::Dict, LFD_comply::Float
                 sim_scens[i]["conf_PCR"]; Day5release=Day5release_bool)
         end
     end
-    sim_scens[Nscens] = copy(sim_baseline)
-    for i in 1:Nscens
+    sim_scens[Nscens+1] = copy(sim_baseline)
+    for i in 1:(Nscens+1)
         sim_scens[i]["inf_days"] = zeros(Int64, Ntot)
         sim_scens[i]["tot_work_isol_days"] = zeros(Int64, Ntot)
         sim_scens[i]["inf_profile_isolation"] = copy(sim_scens[i]["infection_profiles"])
@@ -297,7 +297,7 @@ function run_testing_scenarios_vs_baseline(sim_baseline::Dict, LFD_comply::Float
         end
     end
     
-    return sim_scens, scen_names[ScensToRun]
+    return sim_scens, vcat(scen_names[ScensToRun],scen_names[length(scen_names)])
 end
 
 

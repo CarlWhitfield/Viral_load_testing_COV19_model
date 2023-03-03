@@ -3,6 +3,7 @@ using DataFrames
 using StatsPlots
 using CSV
 using Printf
+using StatsBase
 
 #key options
 VL_model = ke_model_no         #choice of viral load model (Ke et al is default)
@@ -14,19 +15,19 @@ function define_parameter_ranges(p::Int)
     NormRange = collect(-0.5:(1.0/(p-1)):0.5)    #normalised parameter range (-0.5:0.5)
     
     #viral load parameter ranges
-    VPμrange = log.(10 .^(log10.(exp(Kmvμ[1])) .+ NormRange.*2.4))  #10^(Vp +/- 1.2) 
-    TPμrange = log.(exp(Kmvμ[2]) .+ NormRange.*2.0)    #peak time +/- 1 days (fairly well established)
-    TGμrange = log.(exp(Kmvμ[3]) .+ NormRange.*0.1)    #1/growth rate +/- 0.05 (changes V0)
-    TDμrange = log.(exp(Kmvμ[4]) .+ 0.2 .+ 0.6*NormRange)  #1/decay rate +/- 0.3 (shifted to longer decay times)
+    VPμrange = log.(10 .^(log10.(exp(DefaultKmvμ[1])) .+ NormRange.*2.4))  #10^(Vp +/- 1.2) 
+    TPμrange = log.(exp(DefaultKmvμ[2]) .+ NormRange.*2.0)    #peak time +/- 1 days (fairly well established)
+    TGμrange = log.(exp(DefaultKmvμ[3]) .+ NormRange.*0.1)    #1/growth rate +/- 0.05 (changes V0)
+    TDμrange = log.(exp(DefaultKmvμ[4]) .+ 0.2 .+ 0.6*NormRange)  #1/decay rate +/- 0.3 (shifted to longer decay times)
     
     #infectiousness parameter ranges
-    hμrange = Kmvinfμ[2] .+ NormRange.*2.4      #log(h) +/- 1.2
+    hμrange = DefaultKmvinfμ[2] .+ NormRange.*2.4      #log(h) +/- 1.2
     Kmμrange = 4.0e6 .* 10 .^(NormRange.*2.4)   #km 4 * 10.^(6 +/- 1.2)
     
     #lfd sensitivity
-    VL0Range = LFD_VL0_pd3b .+ 1 .+ NormRange.*3.0   #cutoff for detection +/- 1.5 log10 copies/ml (shifted for higher cutoff)
-    SensRange = LFD_self_sens .- 0.05 .+ NormRange.*0.3    #max sensitivity +/- 0.15 (shifted for higher cutoff)
-    VLkRange = exp.(log(LFD_VLk_pd3b) .+ NormRange.*1.2)   #steepness of sensitivity slope log(k) +/- 0.6
+    VL0Range = DefaultLFD_VL0_pd3b .+ 1 .+ NormRange.*3.0   #cutoff for detection +/- 1.5 log10 copies/ml (shifted for higher cutoff)
+    SensRange = DefaultLFD_self_sens .- 0.05 .+ NormRange.*0.3    #max sensitivity +/- 0.15 (shifted for higher cutoff)
+    VLkRange = exp.(log(DefaultLFD_VLk_pd3b) .+ NormRange.*1.2)   #steepness of sensitivity slope log(k) +/- 0.6
     
     #other parameters
     SympFracRange = 0.5 .+ NormRange.*0.6         #symptomatic fraction +/- 0.3
@@ -122,23 +123,23 @@ function generate_and_replace_paths!(AllPaths::Array{Int64,3}, m::Int, r::Int, p
     return Current_d2
 end
 
-function run_sensitivity_sims(r::Int, k::Int, p::Int, Ntot::Int, AllPaths::Array{Int64,3},
+function run_sensitivity_sims(r::Int, p::Int, k::Int, Ntot::Int, AllPaths::Array{Int64,3},
                               AllLevels::Array{Float64,2}, varnames::Array{String,1})
     Mean1 = zeros(k+1,r)
     Mean2 = zeros(k+1,r)
     for ir in 1:r
         for ik in 1:(k+1)
-            Kmvμ = [AllLevels[AllPaths[1,ik,ir],1],AllLevels[AllPaths[2,ik,ir],2],
+            global Kmvμ = [AllLevels[AllPaths[1,ik,ir],1],AllLevels[AllPaths[2,ik,ir],2],
                     AllLevels[AllPaths[3,ik,ir],3],AllLevels[AllPaths[4,ik,ir],4]]
-            Kmvinfμ[2] = AllLevels[AllPaths[5,ik,ir],5]
-            Kinf_Km = AllLevels[AllPaths[6,ik,ir],6]
-            LFD_self_sens = AllLevels[AllPaths[7,ik,ir],7]
-            LFD_VL0_pd3b = AllLevels[AllPaths[8,ik,ir],8]
-            LFD_VLk_pd3b = AllLevels[AllPaths[9,ik,ir],9]
-            DefaultPasymp = 1-AllLevels[AllPaths[10,ik,ir],10]
+            global Kmvinfμ[2] = AllLevels[AllPaths[5,ik,ir],5]
+            global Kinf_Km = AllLevels[AllPaths[6,ik,ir],6]
+            global LFD_self_sens = AllLevels[AllPaths[7,ik,ir],7]
+            global LFD_VL0_pd3b = AllLevels[AllPaths[8,ik,ir],8]
+            global LFD_VLk_pd3b = AllLevels[AllPaths[9,ik,ir],9]
+            global Pasymp = 1-AllLevels[AllPaths[10,ik,ir],10]
             SympMeanTime = AllLevels[AllPaths[11,ik,ir],11]
-            symp_beta = SympMeanTime / 2.6^2
-            symp_alpha = SympMeanTime * symp_beta
+            global symp_beta = SympMeanTime / 2.6^2
+            global symp_alpha = SympMeanTime * symp_beta
 
             sim_baseline = get_no_testing_scenario(Ntot, 1.0)
             scenarios, names = run_testing_scenarios_vs_baseline(sim_baseline, 1.0, false; ScensToRun=[5,6,9])
@@ -151,9 +152,14 @@ function run_sensitivity_sims(r::Int, k::Int, p::Int, Ntot::Int, AllPaths::Array
             end
             Mean1[ik,ir] = (tot_IP0 - tot_IP1)/(tot_IP0)
             Mean2[ik,ir] = (tot_IP0 - tot_IP2)/(tot_IP0)
+            if isnan(Mean1[ik,ir])
+               print("NaN case: VL params: ", Kmvμ, "\nInf params: ", Kmvinfμ, "\nKm: ", Kinf_Km,
+                     "\nLFD sens: ", LFD_self_sens, "\nLFD V0: ", LFD_VL0_pd3b, 
+                     "\nLFD Vk: ", LFD_VLk_pd3b, "\n Pasymp: ", Pasymp, "\n Symp time: ", 
+                     SympMeanTime, '\n') 
+            end
         end
     end
-    
     EE1 = zeros(k,r)
     EE2 = zeros(k,r)
     klist = collect(1:k)
@@ -182,26 +188,20 @@ function run_sensitivity_sims(r::Int, k::Int, p::Int, Ntot::Int, AllPaths::Array
     return mat1, mat2
 end
 
-function run_sensitivity_analysis(repeat::Int)
-    Np = 8           #p in EE analysis (number of levels for each parameter)
-    Nrpaths = 50   #r in EE analysis (number of paths to simulate)
-    Nmpaths = 5000   #~m in EE analysis (number of new paths to try)
-    Ntot = 10000  #number of simulations to run to estimate IP
-    
-    varnames, AllLevels = define_parameter_ranges(Np)
-    Nparams = size(AllLevels)[2]
-    AllPaths = build_paths(Nrpaths, Np, Nparams, AllLevels)
+function run_sensitivity_analysis(repeat::Int, varnames::Array{String,1}, AllLevels::Array{Float64,2},
+                                  m::Int, r::Int, p::Int, k::Int, Nsim::Int)
+    AllPaths = build_paths(r, p, k, AllLevels)
     print("Paths built\n")
     
     #measure spread of paths
-    Current_d2 = path_spread(Nrpaths, Np, AllPaths)
+    Current_d2 = path_spread(r, p, AllPaths)
     
     #generate new paths and replace if they improve the spread of the r paths
-    Current_d2 = generate_and_replace_paths!(AllPaths, Nmpaths, Nrpaths, Np, Nparams, Current_d2)
+    Current_d2 = generate_and_replace_paths!(AllPaths, m, r, p, k, Current_d2)
     print("Paths replaced\n")
     
     #run simulations for the r paths and calculate summary stats
-    Smat_DeltaIP_2LFDs, Smat_DeltaIP_DailyLFDs = run_sensitivity_sims(Nrpaths, Nparams, Np, Ntot, 
+    Smat_DeltaIP_2LFDs, Smat_DeltaIP_DailyLFDs = run_sensitivity_sims(r, p, k, Nsim, 
                                                                       AllPaths, AllLevels, varnames)
     print("Sims finished\n")
     
@@ -213,9 +213,27 @@ function run_sensitivity_analysis(repeat::Int)
     return Smat_DeltaIP_2LFDs, Smat_DeltaIP_DailyLFDs
 end
 
+function bootstrap_stderr(data::Array{Float64,1}, B::Int)
+    means = zeros(B)
+    for b in 1:B
+        samples = sample(data,length(data),replace=true)
+        means[b] = mean(samples)
+    end
+    
+    return std(means)
+end
+
 function run_and_summarise_sensitivity_analyses(Nrepeats::Int64)
+    Np = 8           #p in EE analysis (number of levels for each parameter)
+    Nrpaths = 40   #r in EE analysis (number of paths to simulate)
+    Nmpaths = 2000   #~m in EE analysis (number of new paths to try)
+    Ntot = 1000  #number of simulations to run to estimate IP
+    varnames, AllLevels = define_parameter_ranges(Np)
+    Nparams = size(AllLevels)[2]
+    
     repeats = 1:Nrepeats
-    outputs = run_sensitivity_analysis.(repeats)
+    outputs = run_sensitivity_analysis.(repeats, Ref(varnames), Ref(AllLevels), Ref(Nmpaths), 
+                                        Ref(Nrpaths), Ref(Np), Ref(Nparams), Ref(Ntot))
     k = size(outputs[1][1],1)
     S1mean = zeros(k,3)
     S2mean = zeros(k,3)
@@ -225,14 +243,22 @@ function run_and_summarise_sensitivity_analyses(Nrepeats::Int64)
     end
     S1mean = S1mean./Nrepeats
     S2mean = S2mean./Nrepeats
+    #bootstrap estimate of stderr
+    
     S1stderr = zeros(k,3)
     S2stderr = zeros(k,3)
-    for n in repeats
-        S1stderr = S1stderr .+ (outputs[n][1][:,2:4] .- S1mean).^2
-        S2stderr = S2stderr .+ (outputs[n][2][:,2:4] .- S2mean).^2
+    for ik in 1:k
+        for ij in 1:3
+            measured1 = zeros(length(repeats))
+            measured2 = zeros(length(repeats))
+            for n in repeats
+                measured1[n] = outputs[n][1][ik,ij+1]
+                measured2[n] = outputs[n][2][ik,ij+1]
+            end
+            S1stderr[ik,ij] = bootstrap_stderr(measured1, 100)
+            S2stderr[ik,ij] = bootstrap_stderr(measured2, 100)
+        end
     end
-    S1stderr = sqrt.(S1stderr)./(Nrepeats-1);
-    S2stderr = sqrt.(S2stderr)./(Nrepeats-1);
     
     #print output to file
     latex_names = ["Median peak VL \$V_p\$","Median peak VL time \$\\tau_p\$",

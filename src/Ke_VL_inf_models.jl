@@ -14,11 +14,11 @@ Only to be included by definitions.jl
 const DefaultKmvμ = ReadOnlyArray([17.546426, 1.392914, -1.197782, -0.671588]) 
 Kmvμ = Array(DefaultKmvμ)
 #log covariance matrix
-const DefaultKmvΣ = Array([0.909403 0.043808 -0.010543 0.080628; 
+const DefaultKmvΣ = ReadOnlyArray([0.909403 0.043808 -0.010543 0.080628; 
         0.043808 0.032527 0.028866 0.004503; 
        -0.010543 0.028866 0.028640 0.000383; 
         0.080628 0.004503 0.000383 0.026590])
-KmvΣ = deepcopy(DefaultKmvΣ)
+KmvΣ = Array(DefaultKmvΣ)
 
 #=================================================================#
 
@@ -26,11 +26,11 @@ KmvΣ = deepcopy(DefaultKmvΣ)
 
 #====> Ke et al. 2021 (fitted) <====#
 #log means of parameters J and h (Inf = J VL^h / (VL^h + Km^h))
-const DefaultKmvinfμ = [1.782, -0.108]
-Kmvinfμ = DefaultKmvinfμ
+const DefaultKmvinfμ = ReadOnlyArray([1.782, -0.108])
+Kmvinfμ = Array(DefaultKmvinfμ)
 #log covars
-const DefaultKmvinfΣ = [0.3387 0.0265; 0.0265 0.1270]
-KmvinfΣ = DefaultKmvinfΣ
+const DefaultKmvinfΣ = ReadOnlyArray([0.3387 0.0265; 0.0265 0.1270])
+KmvinfΣ = Array(DefaultKmvinfΣ)
 const Jhcorr = KmvinfΣ[1,2]/sqrt(KmvinfΣ[1,1]*KmvinfΣ[2,2])
 JscaleKe = 5.860/exp(Kmvinfμ[1] + KmvinfΣ[1,1]/2)  #normalisation of mean peak inf (a.u.)
 JscaleKiss = 1.090*JscaleKe
