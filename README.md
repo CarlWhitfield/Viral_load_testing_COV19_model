@@ -1,13 +1,24 @@
 # Summary: 
 
-The functions in this package are intended to represent the 
-stochastic dynamics of viral load, infectivitiy, and test positivity
-in SARS-CoV-2 infections. Currently, these are parameterised using data from 
-Kissler 2020 (DOI: 10.1101/2020.10.21.20217042). 
+This repository contains all of the code used to generate the results in the paper
 
-The parameter estimates still contain significant uncertainty ,and do
-not account for differences due to new variants or vaccines.
+_Modelling the impact of repeat asymptomatic testing policies for staff on SARS-CoV-2 transmission potential_<br>
+Carl Whitfield, University of Manchester COVID-19 Modelling Group, Ian Hall<br>
+Journal of Theoretcial Biology<br>
+<a href="https://doi.org/10.1016/j.jtbi.2022.111335">DOI: 10.1016/j.jtbi.2022.111335</a><br>
 
+The program is coded in julia, and uses a stochastic model of viral load trajectories and test sensitivity to compare the impact of different staff testing policies on potential workplace transmission. Currently, the parameterisations of these functions come from the data associated with the following publications 
+- Viral load trajectories:
+    - Kissler 2020 (DOI: 10.1101/2020.10.21.20217042)
+    - Ke et al. 2021 (DOI: 10.1038/s41564-022-01105-z)
+    - Killingley et al. 2022 (DOI: 10.21203/rs.3.rs-1121993/v1)
+- Infectiousness:
+    - Ke et al. 2021 (DOI: 10.1038/s41564-022-01105-z)
+- Test sensitivity:
+    - PCR: Smith et al. 2020 (DOI: 10.1128/JCM.01134-20)
+    - LFD: Peto et al. 2021 (DOI: 10.1101/2021.01.13.21249563)
+
+The parameter estimates still contain significant uncertainty ,and do not account for differences due to new variants or vaccines beyond those listed for the pulications above.
 
 ```julia
 include("src/viral_load_infectivity_testpos.jl")
@@ -124,8 +135,9 @@ Function to initialise test positive profiles and test isolation probabilities
 
 `init_VL_and_infectiousness(Ntot::Int, Pisol::Float64)`
 
+# Reproducing results in Journal of Theoretcial Biology publication
 
-
+TODO
 
 # Example usage:
 
@@ -348,6 +360,10 @@ print("(", symp_alpha, ", ", symp_beta, ")\n")
     0.5
     (3.4653254437869814, 0.7159763313609466)
 
+
+# Switching between viral-load, infectiousness and test-sensitivity models
+
+TODO
 
 # Other notes
 
